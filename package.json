@@ -1,0 +1,11 @@
+{
+  "name": "me.conkist.gdk.smart-agents",
+  "version": "0.1.0",
+  "displayName": "Conkist GDK Smart Agents",
+  "description": "Smart agents package for Conkist GDK",
+  "unity": "2022.3",
+  "author": {
+    "name": "Conkist"
+  },
+  "dependencies": {}
+}
