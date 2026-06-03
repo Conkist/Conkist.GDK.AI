@@ -1,0 +1,19 @@
+{
+    "name": "Conkist.GDK.SmartAgents",
+    "rootNamespace": "Conkist.GDK.SmartAgents",
+    "references": [
+        "undream.llmunity.Runtime",
+        "com.whisper.unity",
+        "Unity.Nuget.Newtonsoft-Json",
+        "Conkist.GDK"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

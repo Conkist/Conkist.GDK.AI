@@ -3,9 +3,24 @@
   "version": "0.1.0",
   "displayName": "Conkist GDK Smart Agents",
   "description": "Smart agents package for Conkist GDK",
-  "unity": "2022.3",
+  "unity": "6000.3",
+  "unityRelease": "14f1",
   "author": {
-    "name": "Conkist"
+    "name": "Conkist",
+    "url": "https://www.conkist.me/",
+    "email": "mail@conkist.me"
   },
-  "dependencies": {}
+  "samples": [
+    {
+      "displayName": "Conkist Smart Agents",
+      "description": "Demo scenes, characters, and UI illustrating the Smart Agents system.",
+      "path": "Samples~/Conkist Smart Agents/0.1.0"
+    }
+  ],
+  "dependencies": {
+    "ai.undream.llm": "https://github.com/undreamai/LLMUnity.git",
+    "com.whisper.unity": "https://github.com/Macoron/whisper.unity.git?path=/Packages/com.whisper.unity",
+    "me.conkist.gdk.core": "0.1.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.2"
+  }
 }
