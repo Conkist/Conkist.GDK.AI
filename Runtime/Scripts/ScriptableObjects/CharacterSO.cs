@@ -14,7 +14,7 @@ namespace Conkist.GDK.SmartAgents
 
         [Header("RAG (Knowledge Base) Settings")]
         public List<TextAsset> knowledgeFiles;
-        public SerializedKeyAnimation[] expressions;
+        public SerializedKeyAnimation[] animations;
         public string ragSavePath = "CharacterKnowledge.zip";
     }
 }

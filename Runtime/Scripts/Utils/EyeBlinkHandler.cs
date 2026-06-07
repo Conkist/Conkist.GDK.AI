@@ -32,6 +32,13 @@ namespace Conkist.AI.Animation
         // Use this to track if a blink is currently happening
         private bool isBlinking;
 
+        // Use this to suspend procedural random blinking
+        public bool isBlinkingSuspended { get; set; } = false;
+
+        private float _currentBlinkProgress;
+        private bool _currentBlinkInverse;
+        private int _currentBlinkSide;
+
         // Start is called before the first frame update
         void Start()
         {
@@ -41,13 +48,89 @@ namespace Conkist.AI.Animation
         // Update is called once per frame
         void Update()
         {
-            if (!isBlinking)
+            if (!isBlinking && !isBlinkingSuspended)
             {
+                // Check if eyes are already closed/controlled by an external animator state
+                bool externalClosed = false;
+                if (eyes != null)
+                {
+                    foreach (var eye in eyes)
+                    {
+                        if (eye.config != null)
+                        {
+                            foreach (var blend in eye.config)
+                            {
+                                if (headMesh != null)
+                                {
+                                    float weight = headMesh.GetBlendShapeWeight(blend.blendShapeIndex);
+                                    float maxDiff = Mathf.Abs(blend.endValue - blend.startValue);
+                                    float threshold = maxDiff > 0f ? maxDiff * 0.75f : 75f;
+                                    if (Mathf.Abs(weight - blend.startValue) > threshold)
+                                    {
+                                        externalClosed = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (externalClosed) break;
+                    }
+                }
+
+                if (externalClosed)
+                {
+                    ScheduleNextBlink();
+                    return;
+                }
+
                 blinkTimer -= Time.deltaTime;
                 if (blinkTimer <= 0)
                 {
                     StartCoroutine(Blink(0)); // Default to both eyes
                     ScheduleNextBlink();
+                }
+            }
+        }
+
+        void LateUpdate()
+        {
+            if (isBlinking)
+            {
+                ApplyBlinkWeights(_currentBlinkSide, _currentBlinkProgress, _currentBlinkInverse);
+            }
+        }
+
+        private void ApplyBlinkWeights(int side, float progress, bool inverse)
+        {
+            if (headMesh == null || eyes == null) return;
+
+            foreach (var eye in eyes)
+            {
+                if ((side == 0) || (side == 1 && eye.isRightEye) || (side == -1 && !eye.isRightEye))
+                {
+                    if (eye.config != null)
+                    {
+                        foreach (var blend in eye.config)
+                        {
+                            float blendValue = blend.GetRelativeValue(progress, inverse);
+                            headMesh.SetBlendShapeWeight(blend.blendShapeIndex, blendValue);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ResetEyesToOpen()
+        {
+            if (eyes == null || headMesh == null) return;
+            foreach (var eye in eyes)
+            {
+                if (eye.config != null)
+                {
+                    foreach (var blend in eye.config)
+                    {
+                        headMesh.SetBlendShapeWeight(blend.blendShapeIndex, blend.startValue);
+                    }
                 }
             }
         }
@@ -62,45 +145,29 @@ namespace Conkist.AI.Animation
         IEnumerator Blink(int side)
         {
             isBlinking = true;
+            _currentBlinkSide = side;
 
             // Blink closing
             float t = 0;
             while (t < blinkDuration)
             {
-                t += Time.deltaTime;
-                foreach (var eye in eyes)
-                {
-                    if ((side == 0) || (side == 1 && eye.isRightEye) || (side == -1 && !eye.isRightEye))
-                    {
-                        foreach(var blend in eye.config)
-                        {
-                            float blendValue = blend.GetRelativeValue(t / blinkDuration);
-                            headMesh.SetBlendShapeWeight(blend.blendShapeIndex, blendValue);
-                        }
-                    }
-                }
+                _currentBlinkProgress = t / blinkDuration;
+                _currentBlinkInverse = false;
                 yield return null;
+                t += Time.deltaTime;
             }
 
             // Blink opening
             t = 0;
             while (t < blinkDuration)
             {
-                t += Time.deltaTime;
-                foreach (var eye in eyes)
-                {
-                    if ((side == 0) || (side == 1 && eye.isRightEye) || (side == -1 && !eye.isRightEye))
-                    {
-                        foreach (var blend in eye.config)
-                        {
-                            float blendValue = blend.GetRelativeValue(t / blinkDuration, inverse: true);
-                            headMesh.SetBlendShapeWeight(blend.blendShapeIndex, blendValue);
-                        }
-                    }
-                }
+                _currentBlinkProgress = t / blinkDuration;
+                _currentBlinkInverse = true;
                 yield return null;
+                t += Time.deltaTime;
             }
 
+            ResetEyesToOpen();
             isBlinking = false;
         }
 
@@ -117,13 +184,7 @@ namespace Conkist.AI.Animation
         public void ForceOpenEyes()
         {
             StopAllCoroutines();
-            foreach (var eye in eyes)
-            {
-                foreach(var blend in eye.config)
-                {
-                    headMesh.SetBlendShapeWeight(blend.blendShapeIndex, blend.startValue);
-                }
-            }
+            ResetEyesToOpen();
             isBlinking = false;
         }
     }

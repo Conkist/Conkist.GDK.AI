@@ -37,7 +37,7 @@ namespace Conkist.GDK.SmartAgents.TTS
         {
             if (string.IsNullOrEmpty(apiKey))
             {
-                Debug.LogError("[ElevenLabs] API Key is missing! Please assign it in the Inspector.");
+                Debug.LogWarning("[ElevenLabs] API Key is missing! Please assign it in the Inspector.");
                 return null;
             }
 

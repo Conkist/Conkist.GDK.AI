@@ -7,17 +7,26 @@ namespace Conkist.GDK.SmartAgents
     {
         public CharacterSO characterSO;
 
-        public int currentAffinity { get; private set; }
-        public int currentExcitement { get; private set; }
+        public float currentPleasure { get; private set; } = 0f;
+        public float currentArousal { get; private set; } = 0f;
+        public float currentDominance { get; private set; } = 0.5f;
         private GameObject currentTarget;
 
-        public void UpdateMood(int affinity, int excitement)
+        public GameObject CurrentTarget => currentTarget;
+
+        public void UpdateMood(float pleasureDelta, float arousalDelta, float dominanceDelta)
         {
-            currentAffinity += affinity;
-            currentAffinity = Mathf.Clamp(currentAffinity, -10, 10);
-            currentExcitement += excitement;
-            currentExcitement = Mathf.Clamp(currentExcitement, -5, 5);
+            currentPleasure += pleasureDelta;
+            currentPleasure = Mathf.Clamp(currentPleasure, -1f, 1f);
+            currentArousal += arousalDelta;
+            currentArousal = Mathf.Clamp01(currentArousal);
+            currentDominance += dominanceDelta;
+            currentDominance = Mathf.Clamp01(currentDominance);
         }
+
+        // Legacy compatibility accessors
+        public int currentAffinity => Mathf.RoundToInt((currentPleasure - 0.5f) * 20f);
+        public int currentExcitement => Mathf.RoundToInt((currentArousal - 0.5f) * 10f);
 
         public void FindTarget(string targetName)
         {

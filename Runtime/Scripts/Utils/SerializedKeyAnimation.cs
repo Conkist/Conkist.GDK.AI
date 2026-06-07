@@ -7,6 +7,7 @@ namespace Conkist.GDK.SmartAgents
     public class SerializedKeyAnimation
     {
         public string key;
+        public string description;
         public AnimationClip clip;
     }
 }

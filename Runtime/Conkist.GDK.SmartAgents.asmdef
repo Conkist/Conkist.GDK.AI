@@ -5,7 +5,9 @@
         "undream.llmunity.Runtime",
         "com.whisper.unity",
         "Unity.Nuget.Newtonsoft-Json",
-        "Conkist.GDK"
+        "Conkist.GDK",
+        "Unity.Animation.Rigging",
+        "uLipSync.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
