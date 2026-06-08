@@ -61,6 +61,7 @@ namespace Conkist.GDK.SmartAgents
 
         private LLMAgent _llmAgent;
         private string _systemPrompt;
+        private Coroutine _feedbackCoroutine;
 
         private void Awake()
         {
@@ -277,11 +278,22 @@ namespace Conkist.GDK.SmartAgents
 
         private void OnDisable()
         {
+            if (_feedbackCoroutine != null)
+            {
+                StopCoroutine(_feedbackCoroutine);
+                _feedbackCoroutine = null;
+            }
             SafelyCancelLLMRequests();
         }
 
         private void OnDestroy()
         {
+            if (_feedbackCoroutine != null)
+            {
+                StopCoroutine(_feedbackCoroutine);
+                _feedbackCoroutine = null;
+            }
+
             SafelyCancelLLMRequests();
 
             if (_voiceAgentWrapper != null)
@@ -300,6 +312,13 @@ namespace Conkist.GDK.SmartAgents
 
         public void ClearHistory()
         {
+            if (_feedbackCoroutine != null)
+            {
+                StopCoroutine(_feedbackCoroutine);
+                _feedbackCoroutine = null;
+                SetTyping(false);
+            }
+
             if (_provider == LLMProvider.LLMUnity && _llmAgent != null)
             {
                 _ = _llmAgent.ClearHistory();
@@ -415,6 +434,12 @@ namespace Conkist.GDK.SmartAgents
         {
             await System.Threading.Tasks.Task.Yield();
 
+            if (_feedbackCoroutine != null)
+            {
+                StopCoroutine(_feedbackCoroutine);
+                _feedbackCoroutine = null;
+            }
+
             Debug.Log("Show Typing Indicator!");
             SetTyping(true);
 
@@ -514,14 +539,7 @@ namespace Conkist.GDK.SmartAgents
                     AgentActions[] feedbacks = DeserializeAgentFeedbacks(response);
                     if (feedbacks != null && feedbacks.Length > 0)
                     {
-                        // Process each feedback immediately
-                        foreach (var feedback in feedbacks)
-                        {
-                            ProcessAndInvokeActionFeedback(feedback);
-                        }
-                        
-                        // Manage timing and UI updates in background
-                        StartCoroutine(ManageFeedbackTiming(feedbacks));
+                        _feedbackCoroutine = StartCoroutine(ExecuteFeedbacksSequentially(feedbacks));
                     }
                     else
                     {
@@ -646,14 +664,11 @@ namespace Conkist.GDK.SmartAgents
             var feedbacks = DeserializeAgentFeedbacks(cleaned);
             if (feedbacks != null && feedbacks.Length > 0)
             {
-                // Process each feedback immediately
-                foreach (var feedback in feedbacks)
+                if (_feedbackCoroutine != null)
                 {
-                    ProcessAndInvokeActionFeedback(feedback);
+                    StopCoroutine(_feedbackCoroutine);
                 }
-                
-                // Manage timing and UI updates in background
-                StartCoroutine(ManageFeedbackTiming(feedbacks));
+                _feedbackCoroutine = StartCoroutine(ExecuteFeedbacksSequentially(feedbacks));
             }
             else
             {
@@ -696,40 +711,76 @@ namespace Conkist.GDK.SmartAgents
             // Invoke event immediately — allows all subscribers (animate, movement, pickup, etc.) to react independently
             OnFeedbackReceived?.Invoke(feedback);
             
-            // Also invoke message event for UI/speech
-            OnReceiveMessage?.Invoke(feedback.message);
+            // Also invoke message event for UI/speech ONLY if not empty/whitespace
+            if (!string.IsNullOrWhiteSpace(feedback.message))
+            {
+                OnReceiveMessage?.Invoke(feedback.message);
 
-            // Broadcast global GDK event
-            string actorName = (characterActor != null && characterActor.characterSO != null) 
-                ? characterActor.characterSO.defaultName 
-                : gameObject.name;
-            EventManager.TriggerEvent(new AgentMessageEvent(actorName, feedback.message));
+                // Broadcast global GDK event
+                string actorName = (characterActor != null && characterActor.characterSO != null) 
+                    ? characterActor.characterSO.defaultName 
+                    : gameObject.name;
+                EventManager.TriggerEvent(new AgentMessageEvent(actorName, feedback.message));
 
-            // Play speech or fallback lipsync for the message
-            TrySpeakOrAnimateMessage(feedback.message);
+                // Play speech or fallback lipsync for the message
+                TrySpeakOrAnimateMessage(feedback.message);
+            }
         }
 
-        private IEnumerator ManageFeedbackTiming(AgentActions[] feedbacks)
+        private IEnumerator ExecuteFeedbacksSequentially(AgentActions[] feedbacks)
         {
             for (int i = 0; i < feedbacks.Length; i++)
             {
                 var feedback = feedbacks[i];
-                
+
+                // Hide typing indicator before presenting the message if the message is not empty.
+                if (!string.IsNullOrWhiteSpace(feedback.message))
+                {
+                    SetTyping(false);
+                }
+                else
+                {
+                    // If the current action has no message, check if there are any subsequent non-empty messages.
+                    // If there are, show the typing indicator. If not, hide it.
+                    bool hasNextNonEmptyMessage = false;
+                    for (int j = i + 1; j < feedbacks.Length; j++)
+                    {
+                        if (feedbacks[j] != null && !string.IsNullOrWhiteSpace(feedbacks[j].message))
+                        {
+                            hasNextNonEmptyMessage = true;
+                            break;
+                        }
+                    }
+                    if (hasNextNonEmptyMessage)
+                    {
+                        SetTyping(true);
+                    }
+                    else
+                    {
+                        SetTyping(false);
+                    }
+                }
+
+                // Process the feedback (mood, animation, event invoke, speech/lipsync if not empty)
+                ProcessAndInvokeActionFeedback(feedback);
+
+                // Wait for the duration of this action
                 yield return new WaitForSeconds(feedback.duration);
 
+                // If there's another feedback coming
                 if (i < feedbacks.Length - 1)
                 {
-                    if (string.IsNullOrEmpty(feedbacks[i + 1].message))
+                    // If the next feedback has a non-empty message, show the typing indicator for a brief delay to simulate typing
+                    if (feedbacks[i + 1] != null && !string.IsNullOrWhiteSpace(feedbacks[i + 1].message))
                     {
-                        // skip typing indicator if next message is empty
-                        continue;
+                        SetTyping(true);
+                        yield return new WaitForSeconds(0.5f);
                     }
-                    SetTyping(true);
-                    yield return new WaitForSeconds(0.5f);
                 }
             }
-            
+
             SetTyping(false);
+            _feedbackCoroutine = null;
         }
     }
 }
