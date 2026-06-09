@@ -14,7 +14,8 @@ namespace Conkist.GDK.SmartAgents.TTS
         /// Generates an AudioClip from the given text asynchronously.
         /// </summary>
         /// <param name="text">The text to synthesize.</param>
+        /// <param name="voiceId">Optional custom voice ID to use instead of the default.</param>
         /// <returns>A Task that resolves to an AudioClip containing the synthesized voice.</returns>
-        public abstract Task<AudioClip> TextToSpeech(string text);
+        public abstract Task<AudioClip> TextToSpeech(string text, string voiceId = null);
     }
 }

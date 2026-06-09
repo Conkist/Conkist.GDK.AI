@@ -558,7 +558,7 @@ namespace Conkist.GDK.SmartAgents
             }
         }
 
-        private bool TrySpeakOrAnimateMessage(string message)
+        private bool TrySpeakOrAnimateMessage(string message, bool voiceAttempted = false, bool voiceSucceeded = false)
         {
             if (string.IsNullOrWhiteSpace(message))
             {
@@ -567,9 +567,16 @@ namespace Conkist.GDK.SmartAgents
 
             // Attempt to play audio if voice provider is available and valid
             bool voiceStarted = false;
-            if (_voiceAgentWrapper != null && _voiceAgentWrapper.HasValidProvider)
+            if (voiceAttempted)
             {
-                voiceStarted = _voiceAgentWrapper.TryGenerateVoice(message);
+                voiceStarted = voiceSucceeded;
+            }
+            else if (_voiceAgentWrapper != null && _voiceAgentWrapper.HasValidProvider)
+            {
+                string voiceId = (characterActor != null && characterActor.characterSO != null) 
+                    ? characterActor.characterSO.elevenLabsVoiceID 
+                    : null;
+                voiceStarted = _voiceAgentWrapper.TryGenerateVoice(message, voiceId);
             }
 
             if (voiceStarted)
@@ -676,7 +683,7 @@ namespace Conkist.GDK.SmartAgents
             }
         }
 
-        private void ProcessAndInvokeActionFeedback(AgentActions feedback)
+        private void ProcessAndInvokeActionFeedback(AgentActions feedback, bool voiceAttempted = false, bool voiceSucceeded = false)
         {
             if (feedback == null) return;
 
@@ -723,7 +730,7 @@ namespace Conkist.GDK.SmartAgents
                 EventManager.TriggerEvent(new AgentMessageEvent(actorName, feedback.message));
 
                 // Play speech or fallback lipsync for the message
-                TrySpeakOrAnimateMessage(feedback.message);
+                TrySpeakOrAnimateMessage(feedback.message, voiceAttempted, voiceSucceeded);
             }
         }
 
@@ -732,6 +739,39 @@ namespace Conkist.GDK.SmartAgents
             for (int i = 0; i < feedbacks.Length; i++)
             {
                 var feedback = feedbacks[i];
+                bool voiceAttempted = false;
+                bool voiceSucceeded = false;
+
+                // If voice generation is enabled and we have a message, wait for generation to complete
+                if (!string.IsNullOrWhiteSpace(feedback.message) && _voiceAgentWrapper != null && _voiceAgentWrapper.HasValidProvider)
+                {
+                    SetTyping(true);
+
+                    bool voiceReady = false;
+                    bool voiceFailed = false;
+
+                    string voiceId = (characterActor != null && characterActor.characterSO != null) 
+                        ? characterActor.characterSO.elevenLabsVoiceID 
+                        : null;
+
+                    _voiceAgentWrapper.TryGenerateVoice(
+                        feedback.message,
+                        voiceId,
+                        onCompleted: (clip) =>
+                        {
+                            voiceReady = true;
+                            voiceSucceeded = true;
+                        },
+                        onFailed: (err) =>
+                        {
+                            voiceFailed = true;
+                            voiceSucceeded = false;
+                        }
+                    );
+
+                    yield return new WaitUntil(() => voiceReady || voiceFailed);
+                    voiceAttempted = true;
+                }
 
                 // Hide typing indicator before presenting the message if the message is not empty.
                 if (!string.IsNullOrWhiteSpace(feedback.message))
@@ -762,7 +802,7 @@ namespace Conkist.GDK.SmartAgents
                 }
 
                 // Process the feedback (mood, animation, event invoke, speech/lipsync if not empty)
-                ProcessAndInvokeActionFeedback(feedback);
+                ProcessAndInvokeActionFeedback(feedback, voiceAttempted, voiceSucceeded);
 
                 // Wait for the duration of this action
                 yield return new WaitForSeconds(feedback.duration);

@@ -33,7 +33,7 @@ namespace Conkist.GDK.SmartAgents.TTS
             public float similarity_boost;
         }
 
-        public override async Task<AudioClip> TextToSpeech(string text)
+        public override async Task<AudioClip> TextToSpeech(string text, string customVoiceId = null)
         {
             if (string.IsNullOrEmpty(apiKey))
             {
@@ -41,7 +41,8 @@ namespace Conkist.GDK.SmartAgents.TTS
                 return null;
             }
 
-            string url = $"https://api.elevenlabs.io/v1/text-to-speech/{voiceId}";
+            string activeVoiceId = !string.IsNullOrEmpty(customVoiceId) ? customVoiceId : voiceId;
+            string url = $"https://api.elevenlabs.io/v1/text-to-speech/{activeVoiceId}";
 
             var requestData = new ElevenLabsRequest
             {

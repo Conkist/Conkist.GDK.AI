@@ -25,7 +25,7 @@ namespace Conkist.GDK.SmartAgents.TTS
             }
         }
 
-        public bool TryGenerateVoice(string text)
+        public bool TryGenerateVoice(string text, string voiceId = null, System.Action<AudioClip> onCompleted = null, System.Action<string> onFailed = null)
         {
             _voiceGenerator = VoiceGeneratorBase.Instance;
             if (_voiceGenerator == null)
@@ -33,11 +33,11 @@ namespace Conkist.GDK.SmartAgents.TTS
                 return false;
             }
 
-            StartCoroutine(StartTTSCoroutine(_voiceGenerator.TextToSpeech(text), text));
+            StartCoroutine(StartTTSCoroutine(_voiceGenerator.TextToSpeech(text, voiceId), text, onCompleted, onFailed));
             return true;
         }
 
-        private IEnumerator StartTTSCoroutine(Task<AudioClip> task, string originalText)
+        private IEnumerator StartTTSCoroutine(Task<AudioClip> task, string originalText, System.Action<AudioClip> onCompleted = null, System.Action<string> onFailed = null)
         {
             yield return new WaitUntil(() => task.IsCompleted);
             
@@ -45,6 +45,7 @@ namespace Conkist.GDK.SmartAgents.TTS
             {
                 Debug.LogError($"[VoiceAgentWrapper] TTS Generation failed: {task.Exception}");
                 OnVoiceGenerationFailed?.Invoke(originalText);
+                onFailed?.Invoke(originalText);
                 yield break;
             }
 
@@ -53,10 +54,12 @@ namespace Conkist.GDK.SmartAgents.TTS
             {
                 Debug.LogWarning("[VoiceAgentWrapper] TTS generation completed with a null AudioClip.");
                 OnVoiceGenerationFailed?.Invoke(originalText);
+                onFailed?.Invoke(originalText);
                 yield break;
             }
 
             OnVoiceGenerationCompleted?.Invoke(_audioClip);
+            onCompleted?.Invoke(_audioClip);
             
             if (_audioSource != null)
             {

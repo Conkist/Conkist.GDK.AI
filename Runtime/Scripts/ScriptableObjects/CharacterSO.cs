@@ -9,6 +9,7 @@ namespace Conkist.GDK.SmartAgents
         [Header("Character Info")]
         public string defaultName;
         public Sprite defaultAvatar;
+        public string elevenLabsVoiceID;
         [TextArea(5, 10)]
         public string defaultPrompt;
 
