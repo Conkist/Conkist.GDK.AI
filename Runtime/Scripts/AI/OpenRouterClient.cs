@@ -38,8 +38,8 @@ namespace Conkist.GDK.SmartAgents
     [System.Serializable]
     public class OpenRouterClient
     {
-        [SerializeField] private string apiKey;
-        [SerializeField] private string model = "meta-llama/llama-3-8b-instruct:free";
+        [HideInInspector] [SerializeField] private string apiKey;
+        [HideInInspector] [SerializeField] private string model = "meta-llama/llama-3-8b-instruct:free";
 
         private string _systemPrompt;
         private List<OpenRouterMessage> _history = new List<OpenRouterMessage>();
@@ -83,12 +83,27 @@ namespace Conkist.GDK.SmartAgents
             _history.Add(new OpenRouterMessage("user", promptToSend));
 
             // Create Request payload using an anonymous type serialized to JSON
-            var requestPayload = new
+            object requestPayload;
+            if (!string.IsNullOrEmpty(model) && model.StartsWith("@preset/"))
             {
-                model = model,
-                messages = _history,
-                response_format = new { type = "json_object" }
-            };
+                string presetSlug = model.Substring("@preset/".Length);
+                requestPayload = new
+                {
+                    model = model,
+                    preset = presetSlug,
+                    messages = _history,
+                    response_format = new { type = "json_object" }
+                };
+            }
+            else
+            {
+                requestPayload = new
+                {
+                    model = model,
+                    messages = _history,
+                    response_format = new { type = "json_object" }
+                };
+            }
 
             string jsonPayload = requestPayload.ToJson();
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonPayload);

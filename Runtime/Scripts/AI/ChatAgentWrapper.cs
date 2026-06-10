@@ -19,9 +19,53 @@ namespace Conkist.GDK.SmartAgents
     public class ChatAgentWrapper : MonoBehaviour
     {
         public CharacterActor characterActor;
-        
-        [Header("LLM Provider Settings")]
-        [SerializeField] private LLMProvider _provider = LLMProvider.LLMUnity;
+
+        [Header("Custom Overrides")]
+        [SerializeField] private bool _useCustomProvider = false;
+        [SerializeField] private LLMProvider _customProvider = LLMProvider.LLMUnity;
+        [SerializeField] private bool _useCustomModel = false;
+        [SerializeField] private string _customModel;
+
+        public LLMProvider ActiveProvider
+        {
+            get
+            {
+                if (_useCustomProvider)
+                {
+                    return _customProvider;
+                }
+                var settings = GetApplicationSettings();
+                if (settings != null)
+                {
+                    return settings.defaultProvider;
+                }
+                return LLMProvider.LLMUnity;
+            }
+            set
+            {
+                if (_useCustomProvider)
+                {
+                    _customProvider = value;
+                }
+                else
+                {
+                    var settings = GetApplicationSettings();
+                    if (settings != null)
+                    {
+                        settings.defaultProvider = value;
+                    }
+                }
+            }
+        }
+
+        private ApplicationSettingsSO GetApplicationSettings()
+        {
+            if (ApplicationManager.HasInstance)
+            {
+                return ApplicationManager.Instance.Settings;
+            }
+            return null;
+        }
 
         [Header("Prompt Settings")]
         [TextArea(5, 10)]
@@ -32,7 +76,6 @@ namespace Conkist.GDK.SmartAgents
         [SerializeField] private AvatarAnimatorWrapper _avatarAnimatorWrapper;
         [SerializeField] private bool _allowTextDrivenLipsyncFallback = true;
 
-        [Header("OpenRouter Settings")]
         [SerializeField] private OpenRouterClient _openRouterClient;
         
         [Header("Events")]
@@ -66,7 +109,7 @@ namespace Conkist.GDK.SmartAgents
         private void Awake()
         {
             TryGetComponent<LLMAgent>(out _llmAgent);
-            if (_provider == LLMProvider.LLMUnity && _llmAgent == null)
+            if (ActiveProvider == LLMProvider.LLMUnity && _llmAgent == null)
             {
                 Debug.LogError("[ChatAgentWrapper] LLMUnity provider is selected, but LLMAgent component is missing on this GameObject!");
             }
@@ -188,7 +231,7 @@ namespace Conkist.GDK.SmartAgents
         /// </summary>
         private void SafelyCancelLLMRequests()
         {
-            if (_provider != LLMProvider.LLMUnity || _llmAgent == null) return;
+            if (_llmAgent == null) return;
             try
             {
                 _llmAgent.CancelRequests();
@@ -227,10 +270,11 @@ namespace Conkist.GDK.SmartAgents
 
             Debug.Log($"[ChatAgentWrapper] Final system prompt for {characterActor.characterSO.defaultName}:\n{_systemPrompt}");
 
-            if (_provider == LLMProvider.OpenRouter)
+            if (ActiveProvider == LLMProvider.OpenRouter)
             {
                 if (_openRouterClient != null)
                 {
+                    ConfigureOpenRouterClient();
                     _openRouterClient.Initialize(_systemPrompt);
                 }
             }
@@ -239,7 +283,44 @@ namespace Conkist.GDK.SmartAgents
                 _llmAgent.systemPrompt = _systemPrompt;
             }
 
-            Debug.Log($"[ChatAgentWrapper] Initialized static system prompt for: {characterActor.characterSO.defaultName} using provider: {_provider}");
+            Debug.Log($"[ChatAgentWrapper] Initialized static system prompt for: {characterActor.characterSO.defaultName} using provider: {ActiveProvider}");
+        }
+
+        private void ConfigureOpenRouterClient()
+        {
+            if (_openRouterClient == null) return;
+
+            var settings = GetApplicationSettings();
+
+            // Resolve API key
+            string apiKey = "";
+            if (settings != null)
+            {
+                apiKey = settings.defaultOpenRouterApiKey;
+            }
+            else
+            {
+                // Fallback to whatever is serialized directly in OpenRouterClient
+                apiKey = _openRouterClient.ApiKey;
+            }
+            _openRouterClient.ApiKey = apiKey;
+
+            // Resolve Model (which can be a model ID or preset slug)
+            string modelOrPreset = "";
+            if (_useCustomModel && !string.IsNullOrEmpty(_customModel))
+            {
+                modelOrPreset = _customModel;
+            }
+            else if (settings != null)
+            {
+                modelOrPreset = settings.defaultOpenRouterModel;
+            }
+            else
+            {
+                // Fallback to whatever is serialized directly in OpenRouterClient
+                modelOrPreset = _openRouterClient.Model;
+            }
+            _openRouterClient.Model = modelOrPreset;
         }
 
         private void ResolveVoiceAndAnimatorReferences()
@@ -319,11 +400,11 @@ namespace Conkist.GDK.SmartAgents
                 SetTyping(false);
             }
 
-            if (_provider == LLMProvider.LLMUnity && _llmAgent != null)
+            if (ActiveProvider == LLMProvider.LLMUnity && _llmAgent != null)
             {
                 _ = _llmAgent.ClearHistory();
             }
-            else if (_provider == LLMProvider.OpenRouter && _openRouterClient != null)
+            else if (ActiveProvider == LLMProvider.OpenRouter && _openRouterClient != null)
             {
                 _openRouterClient.ClearHistory();
             }
@@ -510,7 +591,7 @@ namespace Conkist.GDK.SmartAgents
             try
             {
                 string response = "";
-                if (_provider == LLMProvider.LLMUnity)
+                if (ActiveProvider == LLMProvider.LLMUnity)
                 {
                     if (_llmAgent == null)
                     {
@@ -528,6 +609,7 @@ namespace Conkist.GDK.SmartAgents
                         SetTyping(false);
                         return;
                     }
+                    ConfigureOpenRouterClient();
                     response = await _openRouterClient.ChatAsync(promptToSend);
                 }
 
