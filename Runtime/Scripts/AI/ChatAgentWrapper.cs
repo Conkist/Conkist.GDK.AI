@@ -55,6 +55,7 @@ namespace Conkist.GDK.SmartAgents
                         settings.defaultProvider = value;
                     }
                 }
+                UpdateActiveProviderCache();
             }
         }
 
@@ -105,16 +106,24 @@ namespace Conkist.GDK.SmartAgents
         private LLMAgent _llmAgent;
         private string _systemPrompt;
         private Coroutine _feedbackCoroutine;
+        private bool _isQuitting = false;
+        private LLMProvider _activeProviderRuntime = LLMProvider.LLMUnity;
 
         private void Awake()
         {
             TryGetComponent<LLMAgent>(out _llmAgent);
-            if (ActiveProvider == LLMProvider.LLMUnity && _llmAgent == null)
+            UpdateActiveProviderCache();
+            if (_activeProviderRuntime == LLMProvider.LLMUnity && _llmAgent == null)
             {
                 Debug.LogError("[ChatAgentWrapper] LLMUnity provider is selected, but LLMAgent component is missing on this GameObject!");
             }
 
             ResolveVoiceAndAnimatorReferences();
+        }
+
+        private void UpdateActiveProviderCache()
+        {
+            _activeProviderRuntime = ActiveProvider;
         }
 
         private string BuildSystemPrompt(CharacterSO characterSO)
@@ -220,7 +229,7 @@ namespace Conkist.GDK.SmartAgents
 
         private void OnApplicationQuit()
         {
-            SafelyCancelLLMRequests();
+            _isQuitting = true;
         }
 
         /// <summary>
@@ -231,7 +240,16 @@ namespace Conkist.GDK.SmartAgents
         /// </summary>
         private void SafelyCancelLLMRequests()
         {
+            if (_isQuitting) return;
+            if (_activeProviderRuntime != LLMProvider.LLMUnity) return;
             if (_llmAgent == null) return;
+
+            // If local client (not remote), verify the LLM component is valid and started
+            if (!_llmAgent.remote)
+            {
+                if (_llmAgent.llm == null || !_llmAgent.llm.started) return;
+            }
+
             try
             {
                 _llmAgent.CancelRequests();
@@ -246,6 +264,7 @@ namespace Conkist.GDK.SmartAgents
 
         private async void Start()
         {
+            UpdateActiveProviderCache();
             InitializeSystemPrompt();
 
             if (_useRAG && _rag != null)
@@ -364,7 +383,10 @@ namespace Conkist.GDK.SmartAgents
                 StopCoroutine(_feedbackCoroutine);
                 _feedbackCoroutine = null;
             }
-            SafelyCancelLLMRequests();
+            if (!_isQuitting)
+            {
+                SafelyCancelLLMRequests();
+            }
         }
 
         private void OnDestroy()
@@ -375,7 +397,10 @@ namespace Conkist.GDK.SmartAgents
                 _feedbackCoroutine = null;
             }
 
-            SafelyCancelLLMRequests();
+            if (!_isQuitting)
+            {
+                SafelyCancelLLMRequests();
+            }
 
             if (_voiceAgentWrapper != null)
             {
