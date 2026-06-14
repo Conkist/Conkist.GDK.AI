@@ -83,6 +83,7 @@ namespace Conkist.GDK.SmartAgents
         public UnityEvent<string> OnReceiveMessage;
         public UnityEvent<bool> OnTypingIndicatorChanged;
         public UnityEvent<AgentActions> OnFeedbackReceived;
+        public UnityEvent OnAllActionsCompleted;
 
         public bool IsTyping { get; private set; }
 
@@ -423,6 +424,7 @@ namespace Conkist.GDK.SmartAgents
                 StopCoroutine(_feedbackCoroutine);
                 _feedbackCoroutine = null;
                 SetTyping(false);
+                OnAllActionsCompleted?.Invoke();
             }
 
             if (ActiveProvider == LLMProvider.LLMUnity && _llmAgent != null)
@@ -622,6 +624,7 @@ namespace Conkist.GDK.SmartAgents
                     {
                         Debug.LogError("[ChatAgentWrapper] Cannot send message because LLMAgent is missing.");
                         SetTyping(false);
+                        OnAllActionsCompleted?.Invoke();
                         return;
                     }
                     response = await _llmAgent.Chat(promptToSend);
@@ -632,6 +635,7 @@ namespace Conkist.GDK.SmartAgents
                     {
                         Debug.LogError("[ChatAgentWrapper] Cannot send message because OpenRouterClient is unassigned.");
                         SetTyping(false);
+                        OnAllActionsCompleted?.Invoke();
                         return;
                     }
                     ConfigureOpenRouterClient();
@@ -651,17 +655,20 @@ namespace Conkist.GDK.SmartAgents
                     else
                     {
                         SetTyping(false);
+                        OnAllActionsCompleted?.Invoke();
                     }
                 }
                 else
                 {
                     SetTyping(false);
+                    OnAllActionsCompleted?.Invoke();
                 }
             }
             catch (System.Exception ex)
             {
                 Debug.LogError($"[ChatAgentWrapper] Error during chat: {ex.Message}");
                 SetTyping(false);
+                OnAllActionsCompleted?.Invoke();
             }
         }
 
@@ -928,6 +935,7 @@ namespace Conkist.GDK.SmartAgents
 
             SetTyping(false);
             _feedbackCoroutine = null;
+            OnAllActionsCompleted?.Invoke();
         }
     }
 }

@@ -55,6 +55,13 @@ namespace Conkist.GDK.SmartAgents
         {
             if (_isRecording || string.IsNullOrEmpty(_activeMicrophone)) return;
 
+            // Destroy the old recording clip to prevent memory leaks
+            if (_recordingClip != null)
+            {
+                Destroy(_recordingClip);
+                _recordingClip = null;
+            }
+
             // Start Unity microphone
             _recordingClip = Microphone.Start(_activeMicrophone, false, _maxDurationSeconds, _sampleRate);
             _isRecording = true;
@@ -95,6 +102,48 @@ namespace Conkist.GDK.SmartAgents
                 return;
             }
 
+            // Fallback: If Whisper model isn't loaded and isn't loading, initialize it now
+            if (!_whisperManager.IsLoaded && !_whisperManager.IsLoading)
+            {
+                Debug.LogWarning("[Record2TextService] Whisper model is not loaded yet. Initializing now...");
+                try
+                {
+                    await _whisperManager.InitModel();
+                }
+                catch (Exception initEx)
+                {
+                    Debug.LogError($"[Record2TextService] Fallback Whisper model initialization failed: {initEx.Message}");
+                    
+                    EventManager.TriggerEvent(new ShowPopupEvent(
+                        "Speech Recognition Disabled",
+                        "The Whisper Speech-to-Text model failed to initialize. The voice recording feature will be disabled.",
+                        "OK",
+                        "",
+                        null,
+                        null,
+                        true
+                    ));
+
+                    OnTranscriptionFailed?.Invoke($"Model initialization failed: {initEx.Message}");
+                    onError?.Invoke($"Model initialization failed: {initEx.Message}");
+                    return;
+                }
+            }
+
+            // Wait if it is currently loading
+            while (_whisperManager.IsLoading)
+            {
+                await System.Threading.Tasks.Task.Yield();
+            }
+
+            if (!_whisperManager.IsLoaded)
+            {
+                Debug.LogError("[Record2TextService] Whisper model failed to load.");
+                OnTranscriptionFailed?.Invoke("Whisper model failed to load.");
+                onError?.Invoke("Whisper model failed to load.");
+                return;
+            }
+
             // Crop the AudioClip
             float[] samples = new float[stopPosition * _recordingClip.channels];
             _recordingClip.GetData(samples, 0);
@@ -120,6 +169,13 @@ namespace Conkist.GDK.SmartAgents
             {
                 OnTranscriptionFailed?.Invoke($"Local transcription failed: {ex.Message}");
                 onError?.Invoke($"Local transcription failed: {ex.Message}");
+            }
+            finally
+            {
+                if (croppedClip != null)
+                {
+                    Destroy(croppedClip);
+                }
             }
         }
     }
