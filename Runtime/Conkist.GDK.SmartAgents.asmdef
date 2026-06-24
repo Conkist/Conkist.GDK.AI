@@ -16,6 +16,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "me.conkist.gdk.core",
+            "expression": "",
+            "define": "CONKIST_GDK_CORE"
+        }
+    ],
     "noEngineReferences": false
 }
