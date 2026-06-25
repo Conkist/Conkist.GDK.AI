@@ -1,6 +1,6 @@
+using Conkist.GDK;
 using UnityEngine;
 using UnityEngine.Events;
-using Conkist.GDK;
 
 namespace Conkist.GDK.SmartAgents
 {
@@ -24,11 +24,11 @@ namespace Conkist.GDK.SmartAgents
             Debug.Log("[ApplicationManager] CloseApplication invoked.");
             OnCloseApplication?.Invoke();
 
-            #if UNITY_EDITOR
+#if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
-            #else
+#else
             Application.Quit();
-            #endif
+#endif
         }
 
         public void RestartApp()

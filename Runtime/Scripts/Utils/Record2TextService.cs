@@ -1,8 +1,9 @@
 using System;
 using UnityEngine;
 using UnityEngine.Events;
+#if !UNITY_WEBGL
 using Whisper;
-using Conkist.GDK;
+#endif
 
 namespace Conkist.GDK.SmartAgents
 {
@@ -11,13 +12,15 @@ namespace Conkist.GDK.SmartAgents
     /// </summary>
     public class Record2TextService : MonoBehaviour
     {
+#if !UNITY_WEBGL
         [Header("Local Whisper Settings")]
         [Tooltip("The WhisperManager instance to use. If empty, it will try to find one on this GameObject.")]
         [SerializeField] private WhisperManager _whisperManager;
+#endif
 
         [Header("Recording Settings")]
         [SerializeField] private int _maxDurationSeconds = 60;
-        
+
         [Tooltip("Whisper natively processes audio at 16000Hz. This ensures best quality.")]
         [SerializeField] private int _sampleRate = 16000;
 
@@ -30,6 +33,7 @@ namespace Conkist.GDK.SmartAgents
         public UnityEvent<string> OnTranscriptionComplete;
         public UnityEvent<string> OnTranscriptionFailed;
 
+#if !UNITY_WEBGL
         private void Start()
         {
             if (_whisperManager == null)
@@ -50,9 +54,11 @@ namespace Conkist.GDK.SmartAgents
                 Debug.LogWarning("[Record2TextService] No microphone found on this device!");
             }
         }
+#endif
 
         public void StartRecording()
         {
+#if !UNITY_WEBGL
             if (_isRecording || string.IsNullOrEmpty(_activeMicrophone)) return;
 
             // Destroy the old recording clip to prevent memory leaks
@@ -66,17 +72,21 @@ namespace Conkist.GDK.SmartAgents
             _recordingClip = Microphone.Start(_activeMicrophone, false, _maxDurationSeconds, _sampleRate);
             _isRecording = true;
             Debug.Log($"[Record2TextService] Started recording on {_activeMicrophone} at {_sampleRate}Hz...");
+#endif
         }
 
         public void StopRecordingAndTranscribeButton()
         {
+#if !UNITY_WEBGL
             Debug.Log($"[Record2TextService] StopRecordingAndTranscribeButton called...");
             StopRecordingAndTranscribe();
+#endif
         }
 
         public async void StopRecordingAndTranscribe(Action<string> onSuccess = null, Action<string> onError = null)
         {
-            if (!_isRecording) 
+#if !UNITY_WEBGL
+            if (!_isRecording)
             {
                 Debug.LogWarning("[Record2TextService] StopRecording called, but _isRecording was false. Did StartRecording run?");
                 return;
@@ -113,7 +123,7 @@ namespace Conkist.GDK.SmartAgents
                 catch (Exception initEx)
                 {
                     Debug.LogError($"[Record2TextService] Fallback Whisper model initialization failed: {initEx.Message}");
-                    
+
                     EventManager.TriggerEvent(new ShowPopupEvent(
                         "Speech Recognition Disabled",
                         "The Whisper Speech-to-Text model failed to initialize. The voice recording feature will be disabled.",
@@ -158,10 +168,10 @@ namespace Conkist.GDK.SmartAgents
                 // Await local transcription
                 var res = await _whisperManager.GetTextAsync(croppedClip);
                 string textResult = (res != null && !string.IsNullOrWhiteSpace(res.Result)) ? res.Result.Trim() : "";
-                
+
                 OnTranscriptionComplete?.Invoke(textResult);
                 onSuccess?.Invoke(textResult);
-                
+
                 // Broadcast global GDK Event
                 EventManager.TriggerEvent(new AgentTranscriptionEvent(textResult));
             }
@@ -177,6 +187,7 @@ namespace Conkist.GDK.SmartAgents
                     Destroy(croppedClip);
                 }
             }
+#endif
         }
     }
 }
