@@ -1,12 +1,13 @@
 using UnityEngine;
 using UnityEngine.Events;
+#if !UNITY_WEBGL
 using LLMUnity;
+#endif
 using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 using Conkist.GDK.Serialization;
 using Conkist.GDK;
-using Conkist.GDK.SmartAgents.TTS;
 
 namespace Conkist.GDK.SmartAgents
 {
@@ -16,10 +17,8 @@ namespace Conkist.GDK.SmartAgents
         OpenRouter
     }
 
-    public class ChatAgentWrapper : MonoBehaviour
+    public class ChatAgentWrapper : AgentWrapper
     {
-        public CharacterActor characterActor;
-
         [Header("Custom Overrides")]
         [SerializeField] private bool _useCustomProvider = false;
         [SerializeField] private LLMProvider _customProvider = LLMProvider.LLMUnity;
@@ -72,29 +71,12 @@ namespace Conkist.GDK.SmartAgents
         [TextArea(5, 10)]
         [SerializeField] private string _systemPromptPrefix;
 
-        [Header("Speech Settings")]
-        [SerializeField] private VoiceAgentWrapper _voiceAgentWrapper;
-        [SerializeField] private AvatarAnimatorWrapper _avatarAnimatorWrapper;
-        [SerializeField] private bool _allowTextDrivenLipsyncFallback = true;
-
         [SerializeField] private OpenRouterClient _openRouterClient;
-        
-        [Header("Events")]
-        public UnityEvent<string> OnReceiveMessage;
-        public UnityEvent<bool> OnTypingIndicatorChanged;
-        public UnityEvent<AgentActions> OnFeedbackReceived;
-        public UnityEvent OnAllActionsCompleted;
-
-        public bool IsTyping { get; private set; }
-
-        private void SetTyping(bool typing)
-        {
-            IsTyping = typing;
-            OnTypingIndicatorChanged?.Invoke(typing);
-        }
 
         [Header("RAG (Knowledge Base) Settings")]
+#if !UNITY_WEBGL
         [SerializeField] private RAG _rag;
+#endif
         [SerializeField] private bool _useRAG = true;
         [SerializeField] private bool _forceRebuildRAG = false;
         [SerializeField] private int _numRAGResults = 3;
@@ -104,22 +86,26 @@ namespace Conkist.GDK.SmartAgents
             "If you choose an animate task, use only exact animation keys from the character's animation list. " +
             "Do not paraphrase, shorten, or invent animation names. If no exact match exists, use task = \"none\".";
 
+#if !UNITY_WEBGL
         private LLMAgent _llmAgent;
+#endif
         private string _systemPrompt;
-        private Coroutine _feedbackCoroutine;
         private bool _isQuitting = false;
         private LLMProvider _activeProviderRuntime = LLMProvider.LLMUnity;
 
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
+#if !UNITY_WEBGL
             TryGetComponent<LLMAgent>(out _llmAgent);
+#endif
             UpdateActiveProviderCache();
+#if !UNITY_WEBGL
             if (_activeProviderRuntime == LLMProvider.LLMUnity && _llmAgent == null)
             {
                 Debug.LogError("[ChatAgentWrapper] LLMUnity provider is selected, but LLMAgent component is missing on this GameObject!");
             }
-
-            ResolveVoiceAndAnimatorReferences();
+#endif
         }
 
         private void UpdateActiveProviderCache()
@@ -241,6 +227,7 @@ namespace Conkist.GDK.SmartAgents
         /// </summary>
         private void SafelyCancelLLMRequests()
         {
+#if !UNITY_WEBGL
             if (_isQuitting) return;
             if (_activeProviderRuntime != LLMProvider.LLMUnity) return;
             if (_llmAgent == null) return;
@@ -261,21 +248,18 @@ namespace Conkist.GDK.SmartAgents
                 // teardown. Letting this propagate crashes Unity with a SIGSEGV.
                 Debug.LogWarning($"[ChatAgentWrapper] Suppressed exception during LLM cancel (teardown race): {ex.Message}");
             }
+#endif
         }
 
-        private async void Start()
+        protected override async void Start()
         {
+            base.Start();
             UpdateActiveProviderCache();
             InitializeSystemPrompt();
 
-            if (_useRAG && _rag != null)
+            if (_useRAG)
             {
                 await InitializeRAG();
-            }
-
-            if (_voiceAgentWrapper != null)
-            {
-                _voiceAgentWrapper.OnVoiceGenerationFailed.AddListener(HandleVoiceGenerationFailed);
             }
         }
 
@@ -298,10 +282,12 @@ namespace Conkist.GDK.SmartAgents
                     _openRouterClient.Initialize(_systemPrompt);
                 }
             }
+#if !UNITY_WEBGL
             else if (_llmAgent != null)
             {
                 _llmAgent.systemPrompt = _systemPrompt;
             }
+#endif
 
             Debug.Log($"[ChatAgentWrapper] Initialized static system prompt for: {characterActor.characterSO.defaultName} using provider: {ActiveProvider}");
         }
@@ -343,94 +329,39 @@ namespace Conkist.GDK.SmartAgents
             _openRouterClient.Model = modelOrPreset;
         }
 
-        private void ResolveVoiceAndAnimatorReferences()
+        protected override void OnDisable()
         {
-            if (_voiceAgentWrapper == null)
-            {
-                TryGetComponent<VoiceAgentWrapper>(out _voiceAgentWrapper);
-                if (_voiceAgentWrapper == null)
-                {
-                    _voiceAgentWrapper = GetComponentInChildren<VoiceAgentWrapper>();
-                }
-                if (_voiceAgentWrapper == null)
-                {
-                    _voiceAgentWrapper = GetComponentInParent<VoiceAgentWrapper>();
-                }
-            }
-
-            if (_avatarAnimatorWrapper == null)
-            {
-                TryGetComponent<AvatarAnimatorWrapper>(out _avatarAnimatorWrapper);
-                if (_avatarAnimatorWrapper == null)
-                {
-                    _avatarAnimatorWrapper = GetComponentInChildren<AvatarAnimatorWrapper>();
-                }
-                if (_avatarAnimatorWrapper == null)
-                {
-                    _avatarAnimatorWrapper = GetComponentInParent<AvatarAnimatorWrapper>();
-                }
-            }
-        }
-
-        private void OnEnable()
-        {
-
-        }
-
-        private void OnDisable()
-        {
-            if (_feedbackCoroutine != null)
-            {
-                StopCoroutine(_feedbackCoroutine);
-                _feedbackCoroutine = null;
-            }
+            base.OnDisable();
             if (!_isQuitting)
             {
                 SafelyCancelLLMRequests();
             }
         }
 
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
-            if (_feedbackCoroutine != null)
-            {
-                StopCoroutine(_feedbackCoroutine);
-                _feedbackCoroutine = null;
-            }
-
+            base.OnDestroy();
             if (!_isQuitting)
             {
                 SafelyCancelLLMRequests();
             }
-
-            if (_voiceAgentWrapper != null)
-            {
-                _voiceAgentWrapper.OnVoiceGenerationFailed.RemoveListener(HandleVoiceGenerationFailed);
-            }
         }
 
-        private void HandleVoiceGenerationFailed(string originalText)
+        public override void ClearHistory()
         {
-            if (_allowTextDrivenLipsyncFallback && _avatarAnimatorWrapper != null)
-            {
-                _avatarAnimatorWrapper.PlayTextLipSync(originalText);
-            }
-        }
+            base.ClearHistory();
 
-        public void ClearHistory()
-        {
-            if (_feedbackCoroutine != null)
-            {
-                StopCoroutine(_feedbackCoroutine);
-                _feedbackCoroutine = null;
-                SetTyping(false);
-                OnAllActionsCompleted?.Invoke();
-            }
-
+#if !UNITY_WEBGL
             if (ActiveProvider == LLMProvider.LLMUnity && _llmAgent != null)
             {
                 _ = _llmAgent.ClearHistory();
             }
+#else
+            if (ActiveProvider == LLMProvider.LLMUnity)
+            {
+                Debug.LogError("[ChatAgentWrapper] LLMUnity is not supported on WebGL builds. Please use OpenRouter or WebGLAgentWrapper.");
+            }
+#endif
             else if (ActiveProvider == LLMProvider.OpenRouter && _openRouterClient != null)
             {
                 _openRouterClient.ClearHistory();
@@ -439,6 +370,7 @@ namespace Conkist.GDK.SmartAgents
 
         private async System.Threading.Tasks.Task InitializeRAG()
         {
+#if !UNITY_WEBGL
             if (characterActor == null || characterActor.characterSO == null)
             {
                 Debug.LogWarning("[ChatAgentWrapper] Cannot initialize RAG: CharacterActor or CharacterSO is unassigned.");
@@ -454,6 +386,11 @@ namespace Conkist.GDK.SmartAgents
             if (string.IsNullOrEmpty(savePath) || (!hasKnowledgeFiles && !hasAnimations))
             {
                 Debug.LogWarning("[ChatAgentWrapper] RAG save path is empty or no knowledge files/animation list are configured in CharacterSO.");
+                return;
+            }
+
+            if (_rag == null)
+            {
                 return;
             }
 
@@ -530,9 +467,13 @@ namespace Conkist.GDK.SmartAgents
             {
                 Debug.Log($"[ChatAgentWrapper] Loaded existing RAG database '{savePath}' with {_rag.Count()} phrases.");
             }
+#else
+            await System.Threading.Tasks.Task.Yield();
+            Debug.LogWarning("[ChatAgentWrapper] RAG is not supported on WebGL builds.");
+#endif
         }
 
-        public void ForceMessageToAgent(string text)
+        public override void ForceMessageToAgent(string text)
         {
             Debug.Log("Forcing message!");
             OnMessageSubmitted(text);
@@ -542,11 +483,7 @@ namespace Conkist.GDK.SmartAgents
         {
             await System.Threading.Tasks.Task.Yield();
 
-            if (_feedbackCoroutine != null)
-            {
-                StopCoroutine(_feedbackCoroutine);
-                _feedbackCoroutine = null;
-            }
+            StopActiveFeedback();
 
             Debug.Log("Show Typing Indicator!");
             SetTyping(true);
@@ -588,6 +525,7 @@ namespace Conkist.GDK.SmartAgents
             }
 
             // Dynamic RAG Context Injection
+#if !UNITY_WEBGL
             if (_useRAG && _rag != null && _rag.Count() > 0)
             {
                 try
@@ -608,6 +546,7 @@ namespace Conkist.GDK.SmartAgents
                     Debug.LogWarning($"[ChatAgentWrapper] RAG search failed: {ex.Message}.");
                 }
             }
+#endif
 
             promptBuilder.AppendLine("User Message:");
             promptBuilder.Append(text);
@@ -620,6 +559,7 @@ namespace Conkist.GDK.SmartAgents
                 string response = "";
                 if (ActiveProvider == LLMProvider.LLMUnity)
                 {
+#if !UNITY_WEBGL
                     if (_llmAgent == null)
                     {
                         Debug.LogError("[ChatAgentWrapper] Cannot send message because LLMAgent is missing.");
@@ -628,6 +568,12 @@ namespace Conkist.GDK.SmartAgents
                         return;
                     }
                     response = await _llmAgent.Chat(promptToSend);
+#else
+                    Debug.LogError("[ChatAgentWrapper] LLMUnity is not supported on WebGL. Please use OpenRouter or WebGLAgentWrapper.");
+                    SetTyping(false);
+                    OnAllActionsCompleted?.Invoke();
+                    return;
+#endif
                 }
                 else
                 {
@@ -672,112 +618,6 @@ namespace Conkist.GDK.SmartAgents
             }
         }
 
-        private bool TrySpeakOrAnimateMessage(string message, bool voiceAttempted = false, bool voiceSucceeded = false)
-        {
-            if (string.IsNullOrWhiteSpace(message))
-            {
-                return false;
-            }
-
-            // Attempt to play audio if voice provider is available and valid
-            bool voiceStarted = false;
-            if (voiceAttempted)
-            {
-                voiceStarted = voiceSucceeded;
-            }
-            else if (_voiceAgentWrapper != null && _voiceAgentWrapper.HasValidProvider)
-            {
-                string voiceId = (characterActor != null && characterActor.characterSO != null) 
-                    ? characterActor.characterSO.elevenLabsVoiceID 
-                    : null;
-                voiceStarted = _voiceAgentWrapper.TryGenerateVoice(message, voiceId);
-            }
-
-            if (voiceStarted)
-            {
-                if (_avatarAnimatorWrapper != null)
-                {
-                    _avatarAnimatorWrapper.OnAudioSpeechStarted();
-                }
-            }
-            else
-            {
-                // Fallback to text lipsync immediately if no voice provider is configured/available
-                if (_allowTextDrivenLipsyncFallback && _avatarAnimatorWrapper != null)
-                {
-                    _avatarAnimatorWrapper.PlayTextLipSync(message);
-                }
-            }
-
-            return voiceStarted;
-        }
-
-
-
-        private string CleanJsonResponse(string response)
-        {
-            if (string.IsNullOrEmpty(response)) return "";
-            string cleaned = response.Trim();
-            if (cleaned.StartsWith("```json"))
-            {
-                cleaned = cleaned.Substring(7);
-            }
-            else if (cleaned.StartsWith("```"))
-            {
-                cleaned = cleaned.Substring(3);
-            }
-            if (cleaned.EndsWith("```"))
-            {
-                cleaned = cleaned.Substring(0, cleaned.Length - 3);
-            }
-            return cleaned.Trim();
-        }
-
-        /// <summary>
-        /// Deserializes the LLM response into an AgentActions array.
-        /// Supports either a raw JSON array [{...}] or a wrapper object { thought: ..., actions: [...] }.
-        /// </summary>
-        private AgentActions[] DeserializeAgentFeedbacks(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return null;
-
-            // First attempt: raw array of action objects.
-            try
-            {
-                var arr = json.FromJson<AgentActions[]>();
-                if (arr != null && arr.Length > 0) return arr;
-            }
-            catch { /* fall through to wrapper parsing */ }
-
-            // Fallback: wrapper object with thought + actions.
-            try
-            {
-                var wrapper = json.FromJson<AgentFeedback>();
-                if (wrapper != null && wrapper.actions != null && wrapper.actions.Length > 0)
-                {
-                    return wrapper.actions;
-                }
-            }
-            catch { /* fall through to plain-object fallback */ }
-
-            // Fallback: single action object {}.
-            try
-            {
-                var single = json.FromJson<AgentActions>();
-                if (single != null)
-                {
-                    Debug.LogWarning("[ChatAgentWrapper] LLM returned a single action object instead of an array. Wrapping automatically.");
-                    return new[] { single };
-                }
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[ChatAgentWrapper] Failed to deserialize agent response: {ex.Message}\nRaw JSON: {json}");
-            }
-
-            return null;
-        }
-
         // Debug helper: inject raw JSON as if it were the LLM response (Editor testing)
         public void InjectRawFeedbackJson(string json)
         {
@@ -785,157 +625,13 @@ namespace Conkist.GDK.SmartAgents
             var feedbacks = DeserializeAgentFeedbacks(cleaned);
             if (feedbacks != null && feedbacks.Length > 0)
             {
-                if (_feedbackCoroutine != null)
-                {
-                    StopCoroutine(_feedbackCoroutine);
-                }
+                StopActiveFeedback();
                 _feedbackCoroutine = StartCoroutine(ExecuteFeedbacksSequentially(feedbacks));
             }
             else
             {
                 Debug.LogError("[ChatAgentWrapper] InjectRawFeedbackJson failed to parse JSON.");
             }
-        }
-
-        private void ProcessAndInvokeActionFeedback(AgentActions feedback, bool voiceAttempted = false, bool voiceSucceeded = false)
-        {
-            if (feedback == null) return;
-
-            // Update mood state
-            if (characterActor != null)
-            {
-                float pleasureDelta = feedback.pleasure_mod != 0 ? feedback.pleasure_mod : feedback.affinity_mod * 0.05f;
-                float arousalDelta = feedback.arousal_mod != 0 ? feedback.arousal_mod : feedback.excitement_mod * 0.1f;
-                float dominanceDelta = feedback.dominance_mod;
-
-                characterActor.UpdateMood(pleasureDelta, arousalDelta, dominanceDelta);
-
-                // Populate resulting states into the feedback so listeners can read final values
-                feedback.resultingPleasure = characterActor.currentPleasure;
-                feedback.resultingArousal = characterActor.currentArousal;
-                feedback.resultingDominance = characterActor.currentDominance;
-            }
-
-            // Backwards-compatibility: parse legacy task format like "animate:Walk" into animate command
-            if ((feedback.animate == null || string.IsNullOrEmpty(feedback.animate.name)) && !string.IsNullOrEmpty(feedback.task))
-            {
-                if (feedback.task.StartsWith("animate:"))
-                {
-                    string animName = feedback.task.Substring("animate:".Length).Trim();
-                    if (!string.IsNullOrEmpty(animName))
-                    {
-                        feedback.animate = new AgentActions.AnimateCommand { name = animName };
-                    }
-                }
-            }
-
-            // Invoke event immediately — allows all subscribers (animate, movement, pickup, etc.) to react independently
-            OnFeedbackReceived?.Invoke(feedback);
-            
-            // Also invoke message event for UI/speech ONLY if not empty/whitespace
-            if (!string.IsNullOrWhiteSpace(feedback.message))
-            {
-                OnReceiveMessage?.Invoke(feedback.message);
-
-                // Broadcast global GDK event
-                string actorName = (characterActor != null && characterActor.characterSO != null) 
-                    ? characterActor.characterSO.defaultName 
-                    : gameObject.name;
-                EventManager.TriggerEvent(new AgentMessageEvent(actorName, feedback.message));
-
-                // Play speech or fallback lipsync for the message
-                TrySpeakOrAnimateMessage(feedback.message, voiceAttempted, voiceSucceeded);
-            }
-        }
-
-        private IEnumerator ExecuteFeedbacksSequentially(AgentActions[] feedbacks)
-        {
-            for (int i = 0; i < feedbacks.Length; i++)
-            {
-                var feedback = feedbacks[i];
-                bool voiceAttempted = false;
-                bool voiceSucceeded = false;
-
-                // If voice generation is enabled and we have a message, wait for generation to complete
-                if (!string.IsNullOrWhiteSpace(feedback.message) && _voiceAgentWrapper != null && _voiceAgentWrapper.HasValidProvider)
-                {
-                    SetTyping(true);
-
-                    bool voiceReady = false;
-                    bool voiceFailed = false;
-
-                    string voiceId = (characterActor != null && characterActor.characterSO != null) 
-                        ? characterActor.characterSO.elevenLabsVoiceID 
-                        : null;
-
-                    _voiceAgentWrapper.TryGenerateVoice(
-                        feedback.message,
-                        voiceId,
-                        onCompleted: (clip) =>
-                        {
-                            voiceReady = true;
-                            voiceSucceeded = true;
-                        },
-                        onFailed: (err) =>
-                        {
-                            voiceFailed = true;
-                            voiceSucceeded = false;
-                        }
-                    );
-
-                    yield return new WaitUntil(() => voiceReady || voiceFailed);
-                    voiceAttempted = true;
-                }
-
-                // Hide typing indicator before presenting the message if the message is not empty.
-                if (!string.IsNullOrWhiteSpace(feedback.message))
-                {
-                    SetTyping(false);
-                }
-                else
-                {
-                    // If the current action has no message, check if there are any subsequent non-empty messages.
-                    // If there are, show the typing indicator. If not, hide it.
-                    bool hasNextNonEmptyMessage = false;
-                    for (int j = i + 1; j < feedbacks.Length; j++)
-                    {
-                        if (feedbacks[j] != null && !string.IsNullOrWhiteSpace(feedbacks[j].message))
-                        {
-                            hasNextNonEmptyMessage = true;
-                            break;
-                        }
-                    }
-                    if (hasNextNonEmptyMessage)
-                    {
-                        SetTyping(true);
-                    }
-                    else
-                    {
-                        SetTyping(false);
-                    }
-                }
-
-                // Process the feedback (mood, animation, event invoke, speech/lipsync if not empty)
-                ProcessAndInvokeActionFeedback(feedback, voiceAttempted, voiceSucceeded);
-
-                // Wait for the duration of this action
-                yield return new WaitForSeconds(feedback.duration);
-
-                // If there's another feedback coming
-                if (i < feedbacks.Length - 1)
-                {
-                    // If the next feedback has a non-empty message, show the typing indicator for a brief delay to simulate typing
-                    if (feedbacks[i + 1] != null && !string.IsNullOrWhiteSpace(feedbacks[i + 1].message))
-                    {
-                        SetTyping(true);
-                        yield return new WaitForSeconds(0.5f);
-                    }
-                }
-            }
-
-            SetTyping(false);
-            _feedbackCoroutine = null;
-            OnAllActionsCompleted?.Invoke();
         }
     }
 }

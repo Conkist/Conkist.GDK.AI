@@ -14,7 +14,7 @@ namespace Conkist.GDK.SmartAgents
         [Header("References")]
         [SerializeField] private CharacterActor _characterActor;
         [SerializeField] private EyeBlinkHandler _eyeBlinkHandler;
-        [SerializeField] private ChatAgentWrapper _chatAgentWrapper;
+        [SerializeField] private AgentWrapper _chatAgentWrapper;
 
         [Header("uLipSync Settings")]
         [SerializeField] private uLipSync.uLipSync _uLipSync;
@@ -86,10 +86,10 @@ namespace Conkist.GDK.SmartAgents
             if (_eyeBlinkHandler == null) _eyeBlinkHandler = GetComponentInChildren<EyeBlinkHandler>();
             if (_eyeBlinkHandler == null) _eyeBlinkHandler = GetComponentInParent<EyeBlinkHandler>();
 
-            // Resolve ChatAgentWrapper
-            if (_chatAgentWrapper == null) _chatAgentWrapper = GetComponent<ChatAgentWrapper>();
-            if (_chatAgentWrapper == null) _chatAgentWrapper = GetComponentInChildren<ChatAgentWrapper>();
-            if (_chatAgentWrapper == null) _chatAgentWrapper = GetComponentInParent<ChatAgentWrapper>();
+            // Resolve AgentWrapper
+            if (_chatAgentWrapper == null) _chatAgentWrapper = GetComponent<AgentWrapper>();
+            if (_chatAgentWrapper == null) _chatAgentWrapper = GetComponentInChildren<AgentWrapper>();
+            if (_chatAgentWrapper == null) _chatAgentWrapper = GetComponentInParent<AgentWrapper>();
 
             // Verification logging
             if (_animator == null)
@@ -106,7 +106,7 @@ namespace Conkist.GDK.SmartAgents
             }
             if (_chatAgentWrapper == null)
             {
-                Debug.LogWarning("[AvatarAnimatorWrapper] ChatAgentWrapper component is missing on this GameObject and all parents/children.");
+                Debug.LogWarning("[AvatarAnimatorWrapper] AgentWrapper component is missing on this GameObject and all parents/children.");
             }
 
             ResolveULipSyncReferences();
@@ -159,7 +159,7 @@ namespace Conkist.GDK.SmartAgents
                 Debug.LogWarning("[AvatarAnimatorWrapper] No animations found in CharacterSO. Animation playback will not work.");
             }
 
-            // Subscribe to ChatAgentWrapper events
+            // Subscribe to AgentWrapper events
             if (_chatAgentWrapper != null)
             {
                 _chatAgentWrapper.OnFeedbackReceived.AddListener(HandleFeedbackReceived);
@@ -692,7 +692,7 @@ namespace Conkist.GDK.SmartAgents
 
             if (!string.IsNullOrEmpty(animName))
             {
-                Debug.Log($"[AvatarAnimatorWrapper] Received animation command from ChatAgentWrapper: '{animName}'");
+                Debug.Log($"[AvatarAnimatorWrapper] Received animation command from AgentWrapper: '{animName}'");
                 PlayAnimation(animName);
             }
 
