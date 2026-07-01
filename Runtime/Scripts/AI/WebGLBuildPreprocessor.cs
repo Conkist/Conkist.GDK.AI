@@ -4,6 +4,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Conkist.GDK.SmartAgents
 {
@@ -82,6 +83,150 @@ namespace Conkist.GDK.SmartAgents
             for (int i = 0; i < go.transform.childCount; i++)
             {
                 TraverseAndStrip(go.transform.GetChild(i).gameObject, objectsToDestroy);
+            }
+        }
+    }
+
+    public class WebGLStreamingAssetsPreprocessor : IPreprocessBuildWithReport
+    {
+        public int callbackOrder => 100; // Run late to backup after other preprocess steps (e.g. LLMBuilder setup)
+
+        public void OnPreprocessBuild(BuildReport report)
+        {
+            if (report.summary.platform == BuildTarget.WebGL)
+            {
+                Debug.Log("[WebGLStreamingAssetsPreprocessor] Preprocessing build for WebGL. Backing up StreamingAssets...");
+                WebGLStreamingAssetsBackupHelper.Backup();
+            }
+        }
+    }
+
+    public class WebGLStreamingAssetsPostprocessor : IPostprocessBuildWithReport
+    {
+        public int callbackOrder => -100; // Run early to restore before other postprocess steps (e.g. LLMBuilder reset)
+
+        public void OnPostprocessBuild(BuildReport report)
+        {
+            if (report.summary.platform == BuildTarget.WebGL)
+            {
+                Debug.Log("[WebGLStreamingAssetsPostprocessor] Postprocessing build for WebGL. Restoring StreamingAssets...");
+                WebGLStreamingAssetsBackupHelper.Restore();
+            }
+        }
+    }
+
+    public static class WebGLStreamingAssetsBackupHelper
+    {
+        public static string BackupPath => Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Temp/StreamingAssetsWebGLBackup");
+        public static string StreamingAssetsPath => Path.Combine(Application.dataPath, "StreamingAssets");
+
+        [MenuItem("Tools/Conkist/Restore WebGL StreamingAssets Backup")]
+        public static void ForceRestore()
+        {
+            if (Directory.Exists(BackupPath))
+            {
+                Restore();
+                EditorUtility.DisplayDialog("StreamingAssets Restore", "StreamingAssets restored successfully from backup.", "OK");
+            }
+            else
+            {
+                EditorUtility.DisplayDialog("StreamingAssets Restore", "No backup directory found to restore.", "OK");
+            }
+        }
+
+        public static void Backup()
+        {
+            try
+            {
+                if (!Directory.Exists(StreamingAssetsPath)) return;
+
+                if (Directory.Exists(BackupPath))
+                {
+                    Directory.Delete(BackupPath, true);
+                }
+                Directory.CreateDirectory(BackupPath);
+
+                // Move directories
+                foreach (var dir in Directory.GetDirectories(StreamingAssetsPath))
+                {
+                    string dirName = Path.GetFileName(dir);
+                    string target = Path.Combine(BackupPath, dirName);
+                    Directory.Move(dir, target);
+
+                    string metaFile = dir + ".meta";
+                    if (File.Exists(metaFile))
+                    {
+                        File.Move(metaFile, target + ".meta");
+                    }
+                }
+
+                // Move files (except the StreamingAssets directory meta file itself)
+                foreach (var file in Directory.GetFiles(StreamingAssetsPath))
+                {
+                    string fileName = Path.GetFileName(file);
+                    string target = Path.Combine(BackupPath, fileName);
+                    File.Move(file, target);
+                }
+
+                AssetDatabase.Refresh();
+                Debug.Log("[WebGLStreamingAssetsBackupHelper] Backup completed successfully.");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[WebGLStreamingAssetsBackupHelper] Failed to backup: {ex.Message}");
+            }
+        }
+
+        public static void Restore()
+        {
+            try
+            {
+                if (!Directory.Exists(BackupPath)) return;
+
+                if (!Directory.Exists(StreamingAssetsPath))
+                {
+                    Directory.CreateDirectory(StreamingAssetsPath);
+                }
+
+                // Move directories back
+                foreach (var dir in Directory.GetDirectories(BackupPath))
+                {
+                    string dirName = Path.GetFileName(dir);
+                    string target = Path.Combine(StreamingAssetsPath, dirName);
+                    if (Directory.Exists(target))
+                    {
+                        Directory.Delete(target, true);
+                    }
+                    Directory.Move(dir, target);
+
+                    string metaFile = dir + ".meta";
+                    if (File.Exists(metaFile))
+                    {
+                        string targetMeta = target + ".meta";
+                        if (File.Exists(targetMeta)) File.Delete(targetMeta);
+                        File.Move(metaFile, targetMeta);
+                    }
+                }
+
+                // Move files back
+                foreach (var file in Directory.GetFiles(BackupPath))
+                {
+                    string fileName = Path.GetFileName(file);
+                    string target = Path.Combine(StreamingAssetsPath, fileName);
+                    if (File.Exists(target))
+                    {
+                        File.Delete(target);
+                    }
+                    File.Move(file, target);
+                }
+
+                Directory.Delete(BackupPath, true);
+                AssetDatabase.Refresh();
+                Debug.Log("[WebGLStreamingAssetsBackupHelper] Restore completed successfully.");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[WebGLStreamingAssetsBackupHelper] Failed to restore: {ex.Message}");
             }
         }
     }
