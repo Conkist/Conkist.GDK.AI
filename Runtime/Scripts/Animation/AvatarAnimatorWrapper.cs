@@ -16,9 +16,14 @@ namespace Conkist.GDK.SmartAgents
         [SerializeField] private EyeBlinkHandler _eyeBlinkHandler;
         [SerializeField] private AgentWrapper _chatAgentWrapper;
 
-        [Header("uLipSync Settings")]
+        [Header("uLipSync Settings (Optional)")]
+#if ULIPSYNC_ENABLED
         [SerializeField] private uLipSync.uLipSync _uLipSync;
         [SerializeField] private uLipSync.uLipSyncBlendShape _uLipSyncBlendShape;
+#else
+        [SerializeField] private MonoBehaviour _uLipSync;
+        [SerializeField] private MonoBehaviour _uLipSyncBlendShape;
+#endif
 
         [Header("Animation Rigging (LookAt)")]
         [SerializeField] private Rig _lookRig;
@@ -351,6 +356,7 @@ namespace Conkist.GDK.SmartAgents
 
         private void ResolveULipSyncReferences()
         {
+#if ULIPSYNC_ENABLED
             if (_uLipSync == null)
             {
                 _uLipSync = GetComponent<uLipSync.uLipSync>();
@@ -364,6 +370,7 @@ namespace Conkist.GDK.SmartAgents
                 if (_uLipSyncBlendShape == null) _uLipSyncBlendShape = GetComponentInChildren<uLipSync.uLipSyncBlendShape>();
                 if (_uLipSyncBlendShape == null) _uLipSyncBlendShape = GetComponentInParent<uLipSync.uLipSyncBlendShape>();
             }
+#endif
         }
 
         private struct SyllableInfo
@@ -511,6 +518,7 @@ namespace Conkist.GDK.SmartAgents
 
                 string phoneme = currentSyllable.phoneme;
                 bool isSilence = (phoneme == "-");
+#if ULIPSYNC_ENABLED
                 float targetRawVolume = isSilence ? 0f : Mathf.Pow(10f, _uLipSyncBlendShape.maxVolume);
 
                 var ratios = new Dictionary<string, float>();
@@ -532,6 +540,7 @@ namespace Conkist.GDK.SmartAgents
                 };
 
                 _uLipSyncBlendShape.OnLipSyncUpdate(info);
+#endif
 
                 yield return null;
                 elapsed += Time.deltaTime;
@@ -539,6 +548,7 @@ namespace Conkist.GDK.SmartAgents
 
             if (_uLipSyncBlendShape != null)
             {
+#if ULIPSYNC_ENABLED
                 var silentRatios = new Dictionary<string, float> { { "-", 1f } };
                 var silentInfo = new uLipSync.LipSyncInfo
                 {
@@ -548,6 +558,7 @@ namespace Conkist.GDK.SmartAgents
                     phonemeRatios = silentRatios
                 };
                 _uLipSyncBlendShape.OnLipSyncUpdate(silentInfo);
+#endif
             }
 
             if (_uLipSync != null)
