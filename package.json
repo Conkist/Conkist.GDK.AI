@@ -18,10 +18,12 @@
     }
   ],
   "dependencies": {
-    "ai.undream.llm": "git://github.com/undreamai/LLMUnity.git",
-    "com.whisper.unity": "git://github.com/Macoron/whisper.unity.git?path=Packages/com.whisper.unity",
     "me.conkist.gdk.core": "0.1.0",
     "com.unity.nuget.newtonsoft-json": "3.2.2",
     "com.unity.animation.rigging": "1.2.1"
+  },
+  "optionalDependencies": {
+    "ai.undream.llm": "git://github.com/undreamai/LLMUnity.git#main",
+    "com.whisper.unity": "git://github.com/Macoron/whisper.unity.git#main"
   }
 }
