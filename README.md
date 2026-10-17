@@ -1,66 +1,103 @@
-# Conkist GDK SmartAgents (Unity Package)
+# Conkist.GDK.AI
 
-This package provides the SmartAgents runtime used by Project SmartAvatar (Bitzy). It includes LLM integration adapters, a local RAG (retrieval-augmented generation) helper, avatar animation adapters, and sample components for building embodied conversational agents in Unity.
+<p>
+  <img src="https://img.shields.io/badge/Unity-6000.3.14f1-black?logo=unity" />
+  <img src="https://img.shields.io/badge/C%23-dev-239120?logo=csharp" />
+  <img src="https://img.shields.io/badge/version-0.1.0-blue" />
+  <img src="https://img.shields.io/badge/license-MIT-green" />
+</p>
 
-## Package Contents
+Embodied AI agents for Unity — real-time conversational avatars with on-device LLM inference, local RAG, lip-sync and voice. The package that powers **Bitzy**, Conkist's interactive mascot.
 
-- Runtime/Scripts/AI
-	- `ChatAgentWrapper.cs` — high-level agent bridge that composes system prompt, optional local RAG context, and sends/receives messages from either LLMUnity or OpenRouter.
-	- `OpenRouterClient.cs` — simple client wrapper for OpenRouter API with history management and `ChatAsync`.
-	- RAG integration: local embedding store used for retrieval and prompt augmentation.
+```json
+"me.conkist.gdk.smart-agents": "https://github.com/Conkist/Conkist.GDK.SmartAgents.git"
+```
 
-- Runtime/Scripts/Animation
-	- `AvatarAnimatorWrapper.cs` — adapter that maps `CharacterSO` animation keys to clips and plays via Playables; reacts to `OnFeedbackReceived` events.
+---
 
-- Runtime/Scripts/ScriptableObjects
-	- `CharacterSO.cs` — character configuration including `defaultPrompt`, `knowledgeFiles`, `animations` (type `SerializedKeyAnimation[]`), and `ragSavePath`.
+## How it works
 
-- Runtime/Scripts/Utils
-	- `SerializedKeyAnimation.cs` — serializable struct with `key`, `description` and `clip` used to declare animations and context descriptions.
+**Decoupled cognition and rendering.** The LLM handles "thinking" — generating dialogue and intent as a structured JSON payload. Unity handles everything visible: animation, lip-sync, gaze, UI. The two sides are connected by a single event (`OnFeedbackReceived`) and never reference each other directly.
 
-- Assets/Samples
-	- Sample scenes and knowledge files used in demos (see `Assets/Samples/Conkist.GDK.SmartAgents/0.1.0/ChatDemo/Bitzy/Knowledge/`).
+**JSON contract.** The LLM is prompted to emit a small deterministic object:
+```json
+{ "dialogue": "Hello!", "intent": "wave" }
+```
+`ChatAgentWrapper` deserializes this into `AgentActions[]` and fires subscribers in parallel — animator, movement controller and UI all react independently.
 
-## Key Concepts
+**Local RAG.** Knowledge files and a generated animation-list document are embedded locally and searched per turn to augment the LLM prompt — even when using a remote provider (OpenRouter).
 
-- Decoupled cognition and rendering: LLM and audio services handle "thinking" while Unity handles rendering and animation scheduling.
-- JSON contract: the LLM is prompted to emit a small, deterministic JSON payload (dialogue + intent fields) that Unity parses to orchestrate blendshapes, gestures, and gaze.
-- Local RAG: documents (knowledge files and generated documents such as the animation list) are embedded locally and searched per-turn to provide retrieval-augmented context to the LLM.
+---
 
-## How Animation Mapping Works
+## LLM Providers
 
-- Animation keys and optional `description` fields are authored on `CharacterSO.animations` (array of `SerializedKeyAnimation`).
-- During RAG rebuild, `ChatAgentWrapper` will generate an "animation list" document (key, clip name, and description) and add it to the RAG embeddings so the LLM can consult semantic context about when to trigger each key.
-- `AvatarAnimatorWrapper` populates its runtime dictionary from `CharacterSO.animations` on `Start()` and uses that dictionary to resolve keys to `AnimationClip`s.
+| Provider | Mode | Notes |
+|---|---|---|
+| [LLMUnity](https://github.com/undream-ai/LLMUnity) | On-device | No network required; not available on WebGL |
+| [OpenRouter](https://openrouter.ai) | Remote | Any model via API key |
 
-## Event Flow (Feedback Processing)
+Both providers share the same RAG augmentation and JSON contract.
 
-- `ChatAgentWrapper` deserializes the LLM response into `AgentActions[]` and immediately invokes `OnFeedbackReceived` for each action, allowing multiple subscribers (animator, movement, UI) to react in parallel.
-- `ManageFeedbackTiming` coroutine handles durations, typing indicators, and sequencing concerns separately from event dispatch.
+---
 
-## Supported Providers
+## Key Components
 
-- LLMUnity (local/native integration) — via `LLMAgent` on the same GameObject.
-- OpenRouter (remote) — via `OpenRouterClient` (assign API key in inspector).
+### `ChatAgentWrapper`
+High-level agent bridge. Composes the system prompt, retrieves RAG context, sends messages to the configured provider, deserializes the response and fires `OnFeedbackReceived`.
 
-Note: The RAG is local; using a remote LLM provider (OpenRouter) still supports local RAG prompt augmentation.
+### `AvatarAnimatorWrapper`
+Consumes `OnFeedbackReceived` events. Resolves animation keys from `CharacterSO.animations` at runtime and plays clips via Unity Playables. Drives lip-sync through `uLipSync` and includes a text-based fallback for when no live audio is available.
 
-## Samples and Knowledge
+### `CharacterSO`
+ScriptableObject that defines the agent's identity:
+- `defaultPrompt` — base system prompt
+- `knowledgeFiles` — documents added to the RAG index
+- `animations` (`SerializedKeyAnimation[]`) — key + description + clip mappings
+- `ragSavePath` — pre-built embedding file path for production builds
 
-- Demo knowledge and research documents are stored in `Assets/Samples/.../Knowledge/`. These can be included in `CharacterSO.knowledgeFiles` to be embedded into the RAG.
-- The sample `smartavatars.txt` contains an overview and the latest updates; it is useful to include in the RAG as a project-level knowledge document.
+### Speech pipeline
+- **STT:** Whisper.cpp via `whisper.unity` (local, 16kHz) — disabled on WebGL
+- **TTS:** ElevenLabs via `ElevenLabsVoiceGenerator`
+- **Lip-sync:** `uLipSync` real-time phoneme analysis + blend-shape driver; text-based fallback for streamed/typed responses
 
-## Tips
+### WebGL support
+Chat is bridged to JavaScript (`WebGLBridge_PostMessage` / `OnUnityMessageSubmitted`) since local inference and Whisper are not available in-browser. STT and LLMUnity are compiled out under `UNITY_WEBGL`.
 
-- Rebuild RAG embeddings in the Editor after adding or editing knowledge files or `CharacterSO.animations` to ensure embeddings are up-to-date.
-- For standalone builds, pre-generate and include the RAG save file (default `ragSavePath`) or enable `forceRebuildRAG` in Editor before building.
-- Use the `InjectRawFeedbackJson` helper for testing animation/event flows in the Editor.
+---
 
-## Contributing
+## Quick Start
 
-- Design discussions, issues, and feature requests should be tracked in the main project repository.
+1. Add `CharacterSO` to your project and configure `defaultPrompt`, `animations` and `knowledgeFiles`
+2. Add `ChatAgentWrapper` + `LLMAgent` (or configure OpenRouter key) to a GameObject
+3. Add `AvatarAnimatorWrapper` to the avatar; assign `CharacterSO`
+4. Rebuild RAG embeddings via the `ChatAgentWrapper` inspector button
+5. Press Play — the agent listens, thinks and responds
 
-## License & Authors
+> For standalone builds: pre-generate the RAG save file in the Editor, or enable `forceRebuildRAG` before building.
 
-Authors: Renato Lima, Leonardo Estevam, Marcos Seruffo
+---
 
+## Install
+
+Add to `Packages/manifest.json`:
+
+```json
+{
+  "dependencies": {
+    "me.conkist.gdk.smart-agents": "https://github.com/Conkist/Conkist.GDK.SmartAgents.git"
+  }
+}
+```
+
+**Third-party dependencies** (also in `manifest.json`):
+```json
+"ai.undream.llm": "https://github.com/undream-ai/LLMUnity.git?path=...",
+"com.hecomi.ulipsync": "https://github.com/hecomi/uLipSync.git#upm",
+"com.whisper.unity": "https://github.com/Macoron/whisper.unity.git?path=..."
+```
+
+---
+
+## Part of
+
+**[Conkist GDK](https://github.com/Conkist)** — Game Development Kit for Unity · [conkist.me](https://conkist.me)
