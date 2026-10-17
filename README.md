@@ -15,12 +15,6 @@ Embodied AI agents for Unity — real-time conversational avatars with on-device
 
 ---
 
-## Topics
-
-`embodied-ai` · `game-agents` · `language-models` · `retrieval-augmented-generation` · `rag` · `voice-synthesis` · `lip-sync` · `npc-ai` · `conversational-ai` · `game-development` · `unity` · `webgl` · `interactive-storytelling`
-
----
-
 ## How it works
 
 **Decoupled cognition and rendering.** The LLM handles "thinking" — generating dialogue and intent as a structured JSON payload. Unity handles everything visible: animation, lip-sync, gaze, UI. The two sides are connected by a single event (`OnFeedbackReceived`) and never reference each other directly.
