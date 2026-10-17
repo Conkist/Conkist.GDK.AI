@@ -10,8 +10,14 @@
 Embodied AI agents for Unity — real-time conversational avatars with on-device LLM inference, local RAG, lip-sync and voice. The package that powers **Bitzy**, Conkist's interactive mascot.
 
 ```json
-"me.conkist.gdk.smart-agents": "https://github.com/Conkist/Conkist.GDK.SmartAgents.git"
+"me.conkist.gdk.ai": "https://github.com/Conkist/Conkist.GDK.AI.git"
 ```
+
+---
+
+## Topics
+
+`embodied-ai` · `game-agents` · `language-models` · `retrieval-augmented-generation` · `rag` · `voice-synthesis` · `lip-sync` · `npc-ai` · `conversational-ai` · `game-development` · `unity` · `webgl` · `interactive-storytelling`
 
 ---
 
@@ -84,7 +90,7 @@ Add to `Packages/manifest.json`:
 ```json
 {
   "dependencies": {
-    "me.conkist.gdk.smart-agents": "https://github.com/Conkist/Conkist.GDK.SmartAgents.git"
+    "me.conkist.gdk.ai": "https://github.com/Conkist/Conkist.GDK.AI.git"
   }
 }
 ```
