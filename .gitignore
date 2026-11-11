@@ -76,3 +76,7 @@ x86/
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# Unity package samples (global gitignore has *~)
+!Samples~
+!Samples~/**
