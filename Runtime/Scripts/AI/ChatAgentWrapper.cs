@@ -78,8 +78,8 @@ namespace Conkist.GDK.AI
 
         [SerializeField] private OpenRouterClient _openRouterClient;
 
-        [Header("RAG (settings are in SmartMascotsSettings > RAG)")]
 #if !UNITY_WEBGL
+        [Header("RAG (settings are in SmartMascotsSettings > RAG)")]
         [SerializeField] private RAG _rag;
 #endif
 
