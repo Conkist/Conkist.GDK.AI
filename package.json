@@ -12,9 +12,9 @@
   },
   "samples": [
     {
-      "displayName": "Conkist Smart Agents",
+      "displayName": "Smart Mascots Chat Demo",
       "description": "Demo scenes, characters, and UI illustrating the Smart Agents system.",
-      "path": "Samples~/Conkist Smart Agents/0.1.0"
+      "path": "Samples~/ChatDemo"
     }
   ],
   "dependencies": {
