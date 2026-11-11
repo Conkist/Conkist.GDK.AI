@@ -1,0 +1,89 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/Samples/Conkist.GDK.SmartAgents/0.1.0/ChatDemo/UI/AppSyle.uss?fileID=7433441132597879392&amp;guid=32a7922f59e404d94b5a9a0814a2a5a6&amp;type=3#AppSyle"/>
+    <ui:VisualElement class="settings-screen">
+        <ui:VisualElement class="settings-header">
+            <ui:Button text="&lt; Back" name="BackButton" class="back-button"/>
+            <ui:Label text="Settings" class="settings-title"/>
+        </ui:VisualElement>
+        <ui:ScrollView vertical-scroller-visibility="Auto" class="settings-scroll">
+            <ui:Label text="Agent Profile:" class="card-title"/>
+            <ui:VisualElement class="settings-card">
+                <ui:VisualElement class="settings-row">
+                    <ui:VisualElement class="row-left">
+                        <ui:Label text="👤" class="row-icon"/>
+                        <ui:Label text="Name: Bitzy" class="row-label"/>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="settings-row">
+                    <ui:VisualElement class="row-left">
+                        <ui:Label text="🔊" class="row-icon"/>
+                        <ui:Label text="Description: Bitzy is the AI assistant and mascot of Conkist." class="row-label"/>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Label text="Preferences:" class="card-title"/>
+            <ui:VisualElement class="settings-card">
+                <ui:VisualElement class="settings-row">
+                    <ui:VisualElement class="row-left">
+                        <ui:Label text="🔔" class="row-icon"/>
+                        <ui:Label text="Notifications" class="row-label"/>
+                    </ui:VisualElement>
+                    <ui:Toggle name="NotificationsToggle" value="false" class="row-toggle"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="settings-row">
+                    <ui:VisualElement class="row-left">
+                        <ui:Label text="🌐" class="row-icon"/>
+                        <ui:Label text="Language" class="row-label"/>
+                    </ui:VisualElement>
+                    <ui:Label text="English" class="row-value"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="settings-row last-row">
+                    <ui:VisualElement class="row-left">
+                        <ui:Label text="🌙" class="row-icon"/>
+                        <ui:Label text="Theme" class="row-label"/>
+                    </ui:VisualElement>
+                    <ui:Label text="Light" class="row-value"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Label text="Volume &amp; Quality:" class="card-title"/>
+            <ui:VisualElement class="settings-card">
+                <ui:VisualElement class="settings-row">
+                    <ui:VisualElement class="row-left">
+                        <ui:Label text="🔊" class="row-icon"/>
+                        <ui:Label text="Volume" class="row-label"/>
+                    </ui:VisualElement>
+                    <ui:Slider name="VolumeSlider" low-value="0" high-value="1" value="0.8" class="settings-slider"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="settings-row last-row">
+                    <ui:VisualElement class="row-left">
+                        <ui:Label text="⚙️" class="row-icon"/>
+                        <ui:Label text="Quality" class="row-label"/>
+                    </ui:VisualElement>
+                    <ui:Label text="High" class="row-value"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Button name="HelpButton" class="action-card-button">
+                <ui:VisualElement class="row-left">
+                    <ui:Label text="❓" class="row-icon"/>
+                    <ui:Label text="Help &amp; Support" class="action-card-text"/>
+                </ui:VisualElement>
+                <ui:Label text="&gt;" class="action-card-arrow"/>
+            </ui:Button>
+            <ui:Button name="CreditsButton" class="action-card-button">
+                <ui:VisualElement class="row-left">
+                    <ui:Label text="ℹ️" class="row-icon"/>
+                    <ui:Label text="Credits" class="action-card-text"/>
+                </ui:VisualElement>
+                <ui:Label text="&gt;" class="action-card-arrow"/>
+            </ui:Button>
+            <ui:Button name="RestartButton" class="action-card-button">
+                <ui:VisualElement class="row-left">
+                    <ui:Label text="🔄" class="row-icon"/>
+                    <ui:Label text="Restart" class="action-card-text"/>
+                </ui:VisualElement>
+                <ui:Label text="&gt;" class="action-card-arrow"/>
+            </ui:Button>
+            <ui:Button text="Exit" name="ExitButton" class="exit-button"/>
+        </ui:ScrollView>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1105 &110500000
+HumanTemplate:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: BitzyBipedMapping
+  m_BoneTemplate:
+    Chest: spine_02.x
+    Head: head.x
+    Hips: root.x
+    Left Index Distal: index2.l
+    Left Index Intermediate: index1.l
+    Left Index Proximal: index1_base.l
+    Left Little Distal: pinky2.l
+    Left Little Intermediate: pinky1.l
+    Left Little Proximal: pinky1_base.l
+    Left Middle Distal: middle2.l
+    Left Middle Intermediate: middle1.l
+    Left Middle Proximal: middle1_base.l
+    Left Ring Distal: ring2.l
+    Left Ring Intermediate: ring1.l
+    Left Ring Proximal: ring1_base.l
+    Left Thumb Distal: thumb3.l
+    Left Thumb Intermediate: thumb2.l
+    Left Thumb Proximal: thumb1.l
+    LeftFoot: foot.l
+    LeftHand: hand.l
+    LeftLowerArm: forearm_stretch.l
+    LeftLowerLeg: leg_stretch.l
+    LeftShoulder: shoulder.l
+    LeftToes: toes_01.l
+    LeftUpperArm: arm_stretch.l
+    LeftUpperLeg: thigh_stretch.l
+    Neck: neck.x
+    Right Index Distal: index2.r
+    Right Index Intermediate: index1.r
+    Right Index Proximal: index1_base.r
+    Right Little Distal: pinky2.r
+    Right Little Intermediate: pinky1.r
+    Right Little Proximal: pinky1_base.r
+    Right Middle Distal: middle2.r
+    Right Middle Intermediate: middle1.r
+    Right Middle Proximal: middle1_base.r
+    Right Ring Distal: ring2.r
+    Right Ring Intermediate: ring1.r
+    Right Ring Proximal: ring1_base.r
+    Right Thumb Distal: thumb3.r
+    Right Thumb Intermediate: thumb2.r
+    Right Thumb Proximal: thumb1.r
+    RightFoot: foot.r
+    RightHand: hand.r
+    RightLowerArm: forearm_stretch.r
+    RightLowerLeg: leg_stretch.r
+    RightShoulder: shoulder.r
+    RightToes: toes_01.r
+    RightUpperArm: arm_stretch.r
+    RightUpperLeg: thigh_stretch.r
+    Spine: spine_01.x
+    UpperChest: spine_03.x

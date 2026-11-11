@@ -1,0 +1,38 @@
+# Scientific Research & Fields of Study
+
+At **Conkist**, research is the heartbeat of our innovation. We actively explore how games, learning sciences, and artificial intelligence can be synthesized to create personalized development pathways for players. Below are the primary fields of study we actively investigate.
+
+---
+
+## 1. SmartAgents & Conversational Companions
+Our primary AI research focuses on **SmartAgents**—dynamic, LLM-powered virtual characters capable of natural language interaction, mood adaptations, and contextual awareness. 
+*   **Key Areas**: Large Language Model (LLM) fine-tuning for games, dynamic character prompt modulation, sentiment and emotional state tracking, and integration of AI behaviors with real-time gameplay loops.
+*   **Goal**: To build virtual companions (like Bitzy) that feel alive, responsive, and supportive, enhancing both immersion and psychological safety.
+
+---
+
+## 2. Stealth Assessment
+Traditional testing can cause anxiety and fail to capture real-world problem-solving abilities. Stealth assessment integrates cognitive and competency evaluations directly into the mechanics of play.
+*   **Key Areas**: Non-intrusive behavioral logging, evidence-centered design (ECD), and mapping gameplay decisions to developmental competencies (e.g., persistence, spatial reasoning, systems thinking).
+*   **Goal**: To measure a player's skills and growth continuously and seamlessly, without interrupting the flow of play.
+
+---
+
+## 3. Game Learning Analytics (GLA)
+We collect, process, and analyze massive streams of real-time behavioral data generated during play to understand the learning process.
+*   **Key Areas**: Interaction telemetry, sequence mining of player actions, identifying patterns of frustration and cognitive breakthroughs, and machine learning models for predictive learning progress.
+*   **Goal**: To gain actionable insights into how individuals learn, enabling systems to dynamically optimize the difficulty and structure of educational content.
+
+---
+
+## 4. User Experience (UX) for Intelligent Systems
+Designing interfaces for AI-driven systems presents unique challenges. We study the psychological and cognitive aspects of human-AI collaboration.
+*   **Key Areas**: Conversational UI/UX, reducing cognitive friction in AI interactions, visual representations of agent emotional states, and building highly accessible interface systems.
+*   **Goal**: To make natural language interactions with complex AI companions feel as intuitive, pleasant, and premium as possible.
+
+---
+
+## 5. Procedural & AI-Generated Content (PCG)
+To provide truly personalized experiences, game worlds and challenges must adapt dynamically to individual players.
+*   **Key Areas**: LLM-generated narrative and quests, procedural puzzle generation based on individual difficulty baselines, and dynamic system prompt updates based on player metrics (like current affinity and excitement).
+*   **Goal**: To construct virtual worlds that automatically rebuild and tailor themselves to offer the optimal balance of challenge and engagement for every unique user.

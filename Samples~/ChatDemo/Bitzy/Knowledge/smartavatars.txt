@@ -1,0 +1,115 @@
+PROJECT SMARTAVATAR: A HUMAN-AVATAR INTERFACE
+
+ABSTRACT
+Project SmartAvatar is an experimental research and product framework developed at Conkist centered on Bitzy, a real-time agentic avatar. The project explores the evolution of human-computer interaction toward embodied conversational agents by integrating Large Language Models (LLMs), streaming speech-to-text, expressive text-to-speech, and procedural animation in Unity. This integration creates a high-fidelity, responsive human-avatar interaction where the avatar responds with synchronized speech, facial expressions, and body language, positioned within a visual novel-inspired chatbot interface designed to optimize user engagement and sustained interaction.
+
+THE PROBLEM
+Contemporary digital environments suffer from fundamentally static interaction patterns. Even polished interfaces rely heavily on taps, menus, and forms, which limit users' ability to communicate intent, nuance, and emotion. These patterns fail to support natural conversational turn-taking behaviors such as timing, acknowledgement, and subtle backchannels—all crucial for building trust and presence.
+
+Embodied agents remain difficult to ship in production. Avatar experiences are expensive to tune and frequently suffer from noticeable latency between user input and response, immediately breaking the illusion of agency. When animation relies on pre-baked loops, movement and expression drift out of alignment with conversational semantics, producing rigid or uncanny results where tone, face, and voice do not match.
+
+Most implementations rely on fragmented pipelines. Speech, intelligence, and animation are assembled as separate features, making it difficult to synchronize speech, lips, emotion, gesture, and gaze in a coherent performance. This fragmentation complicates debugging when behavior feels wrong and reduces the ability to reuse approaches across products.
+
+THE SOLUTION
+SmartAvatar is a real-time multimodal pipeline that converts human input into an LLM-driven response and renders that response as a coordinated performance through a 3D avatar in Unity. Rather than treating the avatar as a decorative layer on top of a chatbot, the system is designed so that conversational meaning is expressed consistently across dialogue, emotion, gesture, and gaze.
+
+Bitzy acts as the communicative bridge between the user and the underlying computational stack. User audio is captured and transcribed; the resulting text is interpreted by an LLM configured with a persona and strict output constraints; the system produces an expressive response that is spoken through low-latency text-to-speech while being physically performed through procedural rigging and facial blendshapes. This approach increases perceived agency and responsiveness, making AI interactions feel more human-centered while providing a reusable pattern for deploying avatar-based experiences in games and applications.
+
+HOW IT WORKS
+End-to-end interaction follows a real-time loop:
+1. The system listens through the microphone and transcribes audio via a streaming speech-to-text service
+2. The transcription is injected into the LLM context window
+3. The LLM generates a structured response designed for both speech and performance
+4. The dialogue is synthesized through text-to-speech
+5. Unity renders the result as synchronized lipsync, facial expression, gesture, and gaze
+
+A key architectural decision is to decouple cognition from rendering. Cognitive processing happens through the LLM and audio services, while Unity is responsible for animation and presentation. This separation preserves stable framerate, reduces runtime coupling, and makes latency management more explicit.
+
+DETAILS OF IMPLEMENTATION
+
+Procedural Animation and Facial Expression
+Unity drives the graphical and interactive components, with implementation designed to preserve responsiveness while supporting nuanced expression. For body movement, the avatar uses Unity's Animation Rigging package to enable procedural adjustments to the skeleton, supporting dynamic target tracking (maintaining eye contact with the camera or looking toward important UI elements) and inverse kinematics for spontaneous gesturing rather than relying strictly on pre-recorded motion.
+
+For facial expressiveness, the avatar is controlled by a parameterized set of blendshapes. Instead of selecting from fixed facial clips, the system triggers emotional states dynamically and modulates intensity, enabling micro-expressions that better reflect the semantic tone of the conversation.
+
+JSON Schema and Orchestration
+To connect the LLM's output to Unity's animation system reliably, SmartAvatar uses a standardized JSON animation pattern. The model is prompted to output not only conversational text but also structured intent for emotion, intensity, gesture, and gaze. A representative payload looks like:
+
+{
+  "dialogue": "I find that approach incredibly fascinating!",
+  "emotion_blendshape": "Joy_01",
+  "intensity": 0.85,
+  "gesture_trigger": "nod_enthusiastic",
+  "gaze_target": "user"
+}
+
+This JSON acts as an orchestration layer that can be parsed deterministically. In Unity, a custom parser decodes the object in real time, eases blendshape values to the target intensity, triggers corresponding rig states, and schedules gaze and gesture slightly ahead of audio playback so the avatar's physical performance aligns with speech.
+
+Cognitive and Auditory Pipeline
+The cognitive and auditory pipeline is designed around minimizing perceived delay. Microphone input is transcribed via streaming speech-to-text, then appended to the LLM context. The LLM functions as Bitzy's "brain," guided by a persona prompt and constrained to output the JSON schema. The dialogue field is then sent to text-to-speech APIs for expressive, low-latency synthesis.
+
+Lipsync and Viseme Synchronization
+Lipsync is treated as a UX-critical layer because users read intent, emotion, and confidence through subtle mouth movement. The system performs lipsync in real time by translating incoming speech audio into a sequence of mouth shapes (visemes) that drive facial blendshapes. The goal is not laboratory-grade phonetic precision, but a result that feels synchronized to people: mouth movement that matches the rhythm, emphasis, and timing of the spoken line.
+
+To avoid distracting "snaps" between visemes, blendshape weights are smoothed so changes ease in and out instead of jumping abruptly. This produces a more natural performance while still preserving responsiveness, which is especially important for short acknowledgements, quick clarifications, and moments where the avatar is "thinking" or "listening."
+
+User Experience Design
+From a UX perspective, good lipsync supports the full conversation loop. It improves turn-taking because users can anticipate when speech begins and ends. It improves comprehension because speech feels more legible when the mouth matches cadence. It builds trust by reducing uncanny valley cues that appear when audio and facial motion drift out of sync. Finally, it supports accessibility by providing an additional visual signal for users who benefit from multimodal communication.
+
+The user experience is intentionally framed through a visual novel-inspired interface rather than a conventional chat window. The dialogue box anchors the bottom of the screen while Bitzy occupies the primary visual space, directing attention to facial expression and body language. A collapsible log preserves conversational context without breaking the visual hierarchy. The UI supports multimodal interaction through voice, text, and clickable choices to accommodate different accessibility needs, grounding novel AI interaction in familiar UX patterns and improving comprehension and comfort.
+
+EARLY RESULTS
+
+Qualitative Feedback
+Initial demonstrations generated positive qualitative feedback across different audiences, including children, teenagers, and neurodivergent individuals. Responses consistently highlighted the avatar's approachability and the feeling of "being accompanied" during the interaction, suggesting that embodied feedback can reduce friction compared to purely text-based assistants. Users reported increased comfort and engagement when interacting with an avatar that provided visible emotional feedback and synchronized nonverbal cues.
+
+A company representative expressed interest in the project while raising a key design consideration: adapting the avatar's visual style toward a more realistic look if that better fits the target context and brand constraints. This input reinforces the importance of treating avatar stylization as a product decision, where realism, friendliness, trust, and performance constraints must be balanced based on the intended use case.
+
+Technical Results
+Early prototypes indicate that LLM-driven avatars can sustain more natural turn-taking when responsiveness is prioritized and speech is synchronized with nonverbal cues. The structured JSON contract has reduced ambiguity in animation control and improved debuggability by making performance decisions explicit. Informal testing suggests that smoothing viseme transitions improves perceived lipsync quality without sacrificing real-time responsiveness.
+
+End-to-end latency measurements show that the system can deliver visible avatar responses within acceptable timeframes for maintaining conversational flow. The modular architecture has enabled rapid iteration on emotion mappings, gesture vocabularies, and animation parameters without requiring deep rewrites of core systems.
+
+Interaction Quality
+Users report that the coordinated performance of speech, facial expression, and gesture significantly improves comprehension of the avatar's intent. The visual novel UI paradigm proves effective at directing user attention and reducing cognitive load compared to traditional chat interfaces. Accessibility improvements through multimodal interaction (voice, text, and clickable choices) are particularly noted as valuable for diverse user populations.
+
+REPEATABILITY AND REUSABILITY
+
+Design for Reuse
+SmartAvatar is designed to be repeatable because it formalizes the contract between cognition and performance. The JSON schema provides a stable, testable interface between the LLM and the runtime, while the separation between speech-to-text, LLM, and text-to-speech services and Unity rendering clarifies responsibilities and reduces coupling. The behavior set is modular, allowing emotion, gesture, and gaze capabilities to be extended without redesigning the full pipeline.
+
+Starter Kit Approach
+In practice, the project can be packaged as a Unity starter kit that includes the JSON schema, prompting templates, parsers, animation adapters, a baseline library of gestures and emotional blendshape mappings, and instrumentation hooks. This packaging supports reuse across products while preserving consistent interaction quality. Projects can adapt the base system to their specific avatar aesthetics, domain context, and interaction patterns while maintaining the underlying efficiency and responsiveness of the framework.
+
+Evaluation Metrics
+Evaluation can be approached through technical and experiential metrics. Key measures include:
+- End-to-end latency from voice input to first visual response
+- Turn completion rate without fallbacks
+- User satisfaction and comfort via in-product surveys
+- Engagement signals such as session length and return rate
+- Qualitative feedback on perceived naturalness and approachability
+- Technical stability and error recovery
+
+
+LATEST UPDATES
+
+Summary of recent changes implemented in the codebase (current version):
+
+- Centralized animation mapping: animation keys were moved to the `CharacterSO` field `animations` (type `SerializedKeyAnimation`) with a new `description` property, allowing the description of contexts in which each key should be used.
+- `AvatarAnimatorWrapper`: now prioritizes `CharacterSO.animations` to populate its mapping dictionary at runtime and keeps the inspector array as a fallback; also logs a `Debug.Log` when it receives an animation command from `ChatAgentWrapper`.
+- `ChatAgentWrapper`: during RAG (re)build, generates and inserts an animation list document (key, clip name, and `description`) into the embeddings for use by the RAG.
+- Decoupled interaction and immediate events: the LLM feedback processing flow was refactored to process and invoke `OnFeedbackReceived` immediately for all listeners (movement, pick, animation, UI), while a new coroutine (`ManageFeedbackTiming`) manages only timing, duration, and typing indicators.
+- RAG compatibility with online providers: the system continues to support use of the local RAG even when the LLM provider is remote (for example, OpenRouter). Note: automatic embedding rebuild is performed in the Editor; in standalone builds, a missing save file requires `forceRebuildRAG` or pre-generation.
+
+Practical impact
+
+- Allows the LLM to consult semantic animation context (when relevant) and return animation keys more accurately.
+- Reduces coupling between subsystems: multiple components react in parallel to the same agent feedback action.
+- Facilitates testing and iteration: the animation list is now documented and embedded into the RAG to instruct the model about usage and constraints of animation keys.
+
+
+KEY TAKEAWAYS
+Project SmartAvatar demonstrates that real-time embodied conversational agents are practical and valuable for creating more natural, engaging AI interactions. By decoupling cognition from rendering, enforcing a strict JSON contract for performance orchestration, and prioritizing responsiveness and synchronization, the system achieves interactions that feel present, readable, and socially natural. The approach is repeatable, extensible, and positioned to become a reusable foundation for avatar-based experiences across games, education, healthcare, and customer service applications.
+
+---
+Authors: Renato Lima, Leonardo Estevam, Marcos Seruffo

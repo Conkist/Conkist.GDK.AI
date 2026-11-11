@@ -1,0 +1,497 @@
+.screen-container {
+    flex-grow: 1;
+    flex-direction: column;
+    background-color: transparent;
+    width: 100%;
+    height: 100%;
+}
+
+.vn-area {
+    flex-grow: 1;
+    flex-basis: 50%;
+    flex-shrink: 0;
+    background-color: transparent;
+    position: relative;
+    border-bottom-left-radius: 60px;
+    border-bottom-right-radius: 60px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+}
+
+.vn-area.vn-area--active {
+    opacity: 1;
+}
+
+.vn-canvas {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+}
+
+.top-bar {
+    flex-direction: row;
+    justify-content: flex-end;
+    padding: 36px 48px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+}
+
+.top-button {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white;
+    border-radius: 54px;
+    width: 108px;
+    height: 108px;
+    margin-left: 24px;
+    padding: 0;
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.3);
+    -unity-font-style: bold;
+    font-size: 52px;
+    -unity-text-align: middle-center;
+    transition: background-color 0.2s;
+}
+
+.top-button:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.chat-area {
+    flex-grow: 1;
+    flex-basis: 50%;
+    flex-shrink: 0;
+    height: 50%;
+    flex-direction: column;
+    background-color: rgb(18, 18, 28);
+    padding: 36px;
+    translate: 0 100%;
+    transition: translate 0.3s ease-in-back;
+}
+
+.chat-area.chat-area--active {
+    translate: 0 0;
+}
+
+.message-log {
+    flex-grow: 1;
+    flex-basis: auto;
+    flex-shrink: 1;
+    height: 0;
+    margin-bottom: 36px;
+}
+
+.message-log .unity-scroller--vertical {
+    width: 16px;
+}
+
+.message-log .unity-scroller--vertical .unity-base-slider__tracker {
+    background-color: transparent;
+    border-width: 0;
+}
+
+.message-log .unity-scroller--vertical .unity-base-slider__dragger {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    left: 4px;
+    width: 8px;
+}
+
+.message-bubble {
+    padding: 24px 36px;
+    border-radius: 48px;
+    margin-bottom: 24px;
+    max-width: 85%;
+}
+
+.message-bubble.received {
+    background-color: rgb(44, 44, 60);
+    align-self: flex-start;
+    border-bottom-left-radius: 12px;
+}
+
+.message-bubble.sent {
+    background-color: rgb(74, 86, 226);
+    align-self: flex-end;
+    border-bottom-right-radius: 12px;
+}
+
+.message-text {
+    color: white;
+    font-size: 42px;
+    white-space: normal;
+}
+
+.input-container {
+    flex-direction: row;
+    align-items: flex-end;
+    background-color: rgb(36, 36, 48);
+    border-radius: 60px;
+    padding: 24px;
+    flex-basis: auto;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.message-input {
+    flex-grow: 1;
+    margin: 0;
+    padding: 0;
+    margin-right: 24px;
+    background-color: transparent;
+    border-width: 0;
+}
+
+.message-input > Label {
+    display: none;
+}
+
+.message-input > .unity-base-text-field__input {
+    background-color: transparent;
+    border-width: 0;
+    color: rgb(255, 255, 255);
+    font-size: 42px;
+    padding: 12px 24px;
+    height: auto;
+    min-height: 108px;
+    max-height: 350px;
+    white-space: normal;
+    -unity-text-align: middle-left;
+}
+
+.message-input > .unity-base-text-field__input:focus {
+    background-color: transparent;
+    border-width: 0;
+    color: rgb(255, 255, 255);
+}
+
+.send-button {
+    background-color: rgb(74, 86, 226);
+    border-radius: 50%;
+    width: 108px;
+    height: 108px;
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    color: white;
+    font-size: 48px;
+    flex-shrink: 0;
+    -unity-text-align: middle-center;
+    transition: background-color 0.2s;
+}
+
+.send-button:hover {
+    background-color: rgb(92, 103, 235);
+}
+
+.send-button:active {
+    background-color: rgb(56, 66, 184);
+}
+
+.sent {
+}
+
+.transparentCursor {
+    --unity-cursor-color: transparent;
+}
+
+.unity-base-text-field__input--placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* --- Menu (Start) Screen Styles --- */
+.menu-screen {
+    flex-grow: 1;
+    background-color: transparent; /* transparent to show the 3D character in background */
+    align-items: center;
+    justify-content: space-between;
+    padding: 36px;
+    height: 100%;
+    width: 100%;
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+}
+
+.menu-screen.menu-screen--active {
+    opacity: 1;
+}
+
+.menu-content {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.logo-container {
+    align-items: center;
+    margin-top: 40px;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.logo-sa {
+    font-size: 110px;
+    -unity-font-style: bold;
+    color: rgb(28, 28, 30);
+    letter-spacing: 4px;
+    -unity-text-align: middle-center;
+    margin-bottom: -10px;
+}
+
+.logo-smartagents {
+    font-size: 38px;
+    -unity-font-style: bold;
+    color: rgb(28, 28, 30);
+    letter-spacing: 2px;
+    -unity-text-align: middle-center;
+}
+
+.start-button-container {
+    width: 100%;
+    align-items: center;
+    margin-bottom: 60px;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.start-button {
+    background-color: rgb(74, 86, 226);
+    color: white;
+    border-radius: 54px;
+    font-size: 40px;
+    -unity-font-style: bold;
+    padding: 24px 64px;
+    width: 75%;
+    height: 108px;
+    border-width: 0;
+    -unity-text-align: middle-center;
+    transition: background-color 0.2s, scale 0.1s;
+}
+
+.start-button:hover {
+    background-color: rgb(92, 103, 235);
+}
+
+.start-button:active {
+    background-color: rgb(56, 66, 184);
+}
+
+/* --- Options (Settings) Screen Styles --- */
+.settings-screen {
+    flex-grow: 1;
+    background-color: rgb(247, 247, 249); /* elegant iOS-like light-gray background */
+    padding: 36px 48px;
+    height: 100%;
+    width: 100%;
+    translate: 100% 0; /* start fully off-screen to the right */
+    transition: translate 0.3s ease-out;
+}
+
+.settings-screen.settings-screen--active {
+    translate: 0 0;
+}
+
+.settings-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    height: 120px;
+    margin-bottom: 24px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(229, 229, 234);
+}
+
+.back-button {
+    background-color: transparent;
+    border-width: 0;
+    color: rgb(74, 86, 226);
+    font-size: 34px;
+    -unity-font-style: bold;
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    -unity-text-align: middle-left;
+}
+
+.back-button:hover {
+    color: rgb(92, 103, 235);
+}
+
+.settings-title {
+    color: rgb(28, 28, 30);
+    font-size: 42px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    flex-grow: 1;
+    margin-right: 120px; /* Counter-balance back button to center perfectly */
+}
+
+.settings-scroll {
+    flex-grow: 1;
+}
+
+.settings-card {
+    background-color: white;
+    border-radius: 28px;
+    padding: 24px 36px;
+    margin-bottom: 36px;
+    border-width: 1px;
+    border-color: rgb(229, 229, 234);
+}
+
+.card-title {
+    color: rgb(142, 142, 147);
+    font-size: 30px;
+    -unity-font-style: bold;
+    margin-bottom: 16px;
+    margin-left: 12px;
+}
+
+.settings-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 0;
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(242, 242, 247);
+}
+
+.settings-row.last-row {
+    border-bottom-width: 0;
+}
+
+.row-left {
+    flex-direction: row;
+    align-items: center;
+}
+
+.row-icon {
+    font-size: 38px;
+    margin-right: 24px;
+    color: rgb(74, 86, 226);
+}
+
+.row-label {
+    color: rgb(28, 28, 30);
+    font-size: 34px;
+}
+
+.row-value {
+    color: rgb(142, 142, 147);
+    font-size: 32px;
+}
+
+.row-toggle {
+    margin: 0;
+    padding: 0;
+}
+
+/* Hide default text/label of toggle if any */
+.row-toggle > Label {
+    display: none;
+}
+
+/* Style the track */
+.row-toggle > .unity-toggle__input {
+    background-color: rgb(209, 209, 214); /* iOS light gray background */
+    border-radius: 40px;
+    width: 110px;
+    height: 64px;
+    border-width: 0;
+    margin: 0;
+    padding: 0;
+    transition: background-color 0.2s;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+/* Style the knob/handle */
+.row-toggle > .unity-toggle__input > .unity-toggle__checkmark {
+    background-color: white;
+    border-radius: 40px; /* 40px rounded corners */
+    width: 52px;
+    height: 52px;
+    margin: 6px;
+    background-image: none; /* removes the default tick image */
+    border-width: 0;
+    transition: translate 0.2s;
+}
+
+/* Style active track color when checked */
+.row-toggle:checked > .unity-toggle__input {
+    background-color: rgb(74, 86, 226); /* purple-blue active track color */
+}
+
+/* Slide the knob to the right when checked */
+.row-toggle:checked > .unity-toggle__input > .unity-toggle__checkmark {
+    translate: 46px 0; /* shifts the handle to the right side of the capsule track */
+}
+
+.row-dropdown {
+    margin: 0;
+    padding: 0;
+    min-width: 200px;
+    font-size: 32px;
+}
+
+.settings-slider {
+    flex-grow: 1;
+    margin-left: 36px;
+}
+
+/* --- Secondary Card Actions (Help, Credits) --- */
+.action-card-button {
+    background-color: white;
+    border-radius: 28px;
+    padding: 28px 36px;
+    margin-bottom: 24px;
+    border-width: 1px;
+    border-color: rgb(229, 229, 234);
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.2s;
+}
+
+.action-card-button:hover {
+    background-color: rgb(242, 242, 247);
+}
+
+.action-card-text {
+    color: rgb(28, 28, 30);
+    font-size: 34px;
+    -unity-font-style: bold;
+}
+
+.action-card-arrow {
+    color: rgb(142, 142, 147);
+    font-size: 34px;
+}
+
+/* --- Exit Button Style --- */
+.exit-button {
+    background-color: white;
+    border-radius: 28px;
+    border-width: 1px;
+    border-color: rgb(229, 229, 234);
+    color: rgb(255, 59, 48);
+    font-size: 36px;
+    -unity-font-style: bold;
+    padding: 28px;
+    -unity-text-align: middle-center;
+    transition: background-color 0.2s;
+    margin-top: 12px;
+    margin-bottom: 60px;
+}
+
+.exit-button:hover {
+    background-color: rgb(255, 235, 235);
+}
+
+.exit-button:active {
+    background-color: rgb(255, 219, 219);
+}

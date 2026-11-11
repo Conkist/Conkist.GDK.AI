@@ -1,0 +1,25 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/Samples/Conkist.GDK.SmartAgents/0.1.0/ChatDemo/UI/AppSyle.uss?fileID=7433441132597879392&amp;guid=32a7922f59e404d94b5a9a0814a2a5a6&amp;type=3#AppSyle"/>
+    <ui:VisualElement class="screen-container">
+        <ui:VisualElement class="vn-area" style="transition-property: opacity; transition-duration: 0.3s; transition-timing-function: ease-in;">
+            <ui:VisualElement name="VisualNovelCanva" class="vn-canvas"/>
+            <ui:VisualElement class="top-bar" style="background-image: none;">
+                <ui:Button text="🕒" name="HistoryButton" enabled="true" class="top-button" style="display: none;"/>
+                <ui:Button name="MenuButton" icon-image="project://database/Assets/Samples/Conkist.GDK.SmartAgents/0.1.0/ChatDemo/Graphics/menu.png?fileID=21300000&amp;guid=b8bf26b777ef84528b53a4f20d7df379&amp;type=3#menu" class="top-button" style="background-color: rgba(0, 0, 0, 0.45);"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="chat-area" style="flex-basis: 40%; transition-property: translate; transition-duration: 0.3s; transition-timing-function: ease-in-back; translate: 0 0%;">
+            <ui:ScrollView vertical-scroller-visibility="Auto" name="BubbleMessageLog" class="message-log" style="min-height: 0%;">
+                <ui:VisualElement name="TypingIndicator" class="message-bubble received typing-indicator" style="display: none;">
+                    <ui:Label text="..." class="message-text"/>
+                </ui:VisualElement>
+            </ui:ScrollView>
+            <ui:VisualElement class="input-container" style="min-height: 96px;">
+                <ui:TextField name="MessageInput" multiline="true" placeholder-text="Type your message..." class="message-input"/>
+                <ui:Button name="RecordButton" text="" icon-image="project://database/Assets/Samples/Conkist.GDK.SmartAgents/0.1.0/ChatDemo/Graphics/mic.png?fileID=2800000&amp;guid=b1d65daf8505048f480777a95fa26f7a&amp;type=3#mic" class="send-button" style="font-size: 42px; -unity-text-align: middle-center;"/>
+                <ui:Button name="SendRecordButton" text="" icon-image="project://database/Assets/Samples/Conkist.GDK.SmartAgents/0.1.0/ChatDemo/Graphics/send.png?fileID=2800000&amp;guid=94526661c59c34c8aa26f0d93b71dde0&amp;type=3#send" class="send-button" style="display: none; background-color: rgb(226, 74, 74); font-size: 42px; -unity-text-align: middle-center;"/>
+                <ui:Button name="SendButton" text="" icon-image="project://database/Assets/Samples/Conkist.GDK.SmartAgents/0.1.0/ChatDemo/Graphics/send.png?fileID=2800000&amp;guid=94526661c59c34c8aa26f0d93b71dde0&amp;type=3#send" class="send-button" style="display: none;"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
