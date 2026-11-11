@@ -57,6 +57,7 @@ namespace Conkist.GDK.AI.Editor
             Section("Speech to Text");
             ProviderRow(serializedObject.FindProperty("speechToText"), "showRecordButton", "Show record button", IsSymbolOn("CONKIST_WHISPER"),
                 "Whisper not enabled. Open Conkist > GDK > AI > Setup Whisper.", "Conkist/GDK/AI/Setup Whisper");
+            Field(serializedObject.FindProperty("speechToText"), "sendAutomatically", "Send transcription automatically");
 
             Section("Text to Speech (ElevenLabs)");
             var tts = serializedObject.FindProperty("textToSpeech");

@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace Conkist.GDK.AI.Editor
 {
@@ -32,9 +34,18 @@ namespace Conkist.GDK.AI.Editor
 
         [SerializeField] private Kind _kind;
         private ListRequest _list;
+
+        // Whisper model download (ggml models from the whisper.cpp Hugging Face repo).
+        private const string ModelBaseUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/";
+        private static readonly string[] ModelNames = { "ggml-tiny.bin", "ggml-base.bin", "ggml-small.bin" };
+        private static readonly string[] ModelLabels = { "tiny (~75 MB, fastest)", "base (~142 MB)", "small (~466 MB, best quality)" };
+        [SerializeField] private int _modelIndex;
+        private UnityWebRequest _modelRequest;
+        private string _modelTarget;
         private AddRequest _add;
         private RemoveRequest _remove;
         private HashSet<string> _installed = new HashSet<string>();
+        private HashSet<string> _embedded = new HashSet<string>();
 
         [MenuItem("Conkist/GDK/AI/Setup Lipsync")]
         private static void OpenLipsync() => Open(Kind.Lipsync);
@@ -74,14 +85,24 @@ namespace Conkist.GDK.AI.Editor
         }
 
         private void OnEnable() => Refresh();
+        private void OnDisable() => CancelModelDownload();
 
         private void Refresh() => _list = Client.List(true);
 
         private void OnInspectorUpdate()
         {
+            if (_modelRequest != null)
+            {
+                if (_modelRequest.isDone) FinishModelDownload();
+                Repaint();
+            }
             if (_list != null && _list.IsCompleted)
             {
-                if (_list.Status == StatusCode.Success) _installed = new HashSet<string>(_list.Result.Select(p => p.name));
+                if (_list.Status == StatusCode.Success)
+                {
+                    _installed = new HashSet<string>(_list.Result.Select(p => p.name));
+                    _embedded = new HashSet<string>(_list.Result.Where(p => p.source == PackageSource.Embedded).Select(p => p.name));
+                }
                 _list = null;
                 Repaint();
             }
@@ -102,10 +123,13 @@ namespace Conkist.GDK.AI.Editor
 
         private void WhisperRow()
         {
-            bool on = _installed.Contains(WhisperId);
+            bool installed = _installed.Contains(WhisperId);
+            bool symbolOn = IsSymbolOn(WhisperSymbol);
+            bool on = installed && symbolOn;
             bool busy = _add != null || _remove != null;
+            string state = on ? "Enabled" : installed ? "Package installed, symbol off" : "Disabled";
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Whisper (optional)", on ? "Enabled" : "Disabled");
+            EditorGUILayout.LabelField("Whisper (optional)", state);
             using (new EditorGUI.DisabledScope(busy))
             {
                 if (GUILayout.Button(on ? "Disable" : "Enable", GUILayout.Width(90)))
@@ -114,7 +138,15 @@ namespace Conkist.GDK.AI.Editor
                     {
                         // Symbol first: a symbol without the package would not compile.
                         SetSymbol(WhisperSymbol, false);
-                        _remove = Client.Remove(WhisperId);
+                        // An embedded copy lives in the project's Packages folder: never remove it, only clear the symbol.
+                        if (!_embedded.Contains(WhisperId)) _remove = Client.Remove(WhisperId);
+                        else Refresh();
+                    }
+                    else if (installed)
+                    {
+                        // Package already there (for example embedded): only the symbol is missing.
+                        SetSymbol(WhisperSymbol, true);
+                        Refresh();
                     }
                     else
                     {
@@ -123,7 +155,70 @@ namespace Conkist.GDK.AI.Editor
                 }
             }
             EditorGUILayout.EndHorizontal();
-            EditorGUILayout.HelpBox("Local speech to text (ISpeechToText). Native platforms only; not used on WebGL. Enable installs whisper.unity and sets CONKIST_WHISPER on Standalone, Android, iOS and WebGL. Disable clears the symbol and removes the package. After enabling, select a GameObject and run Conkist > GDK > AI > Add Whisper Speech-to-Text to Selection. Keep an AILifetimeScope in the scene.", MessageType.None);
+            EditorGUILayout.HelpBox("Local speech to text (ISpeechToText). Native platforms only; not used on WebGL. Enable installs whisper.unity (if missing) and sets CONKIST_WHISPER on Standalone, Android, iOS and WebGL. Disable clears the symbol and removes the package, unless it is embedded in the project. After enabling, select a GameObject and run Conkist > GDK > AI > Add Whisper Speech-to-Text to Selection. Keep an AILifetimeScope in the scene.", MessageType.None);
+        }
+
+        private static string ModelDir => Path.Combine(Application.dataPath, "StreamingAssets", "Whisper");
+
+        private void WhisperModelRow()
+        {
+            string name = ModelNames[_modelIndex];
+            bool exists = File.Exists(Path.Combine(ModelDir, name));
+            bool busy = _modelRequest != null;
+
+            EditorGUILayout.BeginHorizontal();
+            using (new EditorGUI.DisabledScope(busy))
+                _modelIndex = EditorGUILayout.Popup("Whisper model", _modelIndex, ModelLabels);
+            using (new EditorGUI.DisabledScope(busy || exists))
+            {
+                if (GUILayout.Button(exists ? "Installed" : "Download", GUILayout.Width(90))) StartModelDownload(name);
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (busy)
+            {
+                var rect = EditorGUILayout.GetControlRect();
+                EditorGUI.ProgressBar(rect, _modelRequest.downloadProgress, $"{name}  {(_modelRequest.downloadProgress * 100f):0}%");
+                if (GUILayout.Button("Cancel")) CancelModelDownload();
+            }
+            EditorGUILayout.HelpBox($"Saves the model in Assets/StreamingAssets/Whisper/ ({name}). Then set the WhisperManager Model Path to Whisper/{name}. Models are large: keep them out of git (add Assets/StreamingAssets/Whisper/*.bin to .gitignore).", MessageType.None);
+        }
+
+        private void StartModelDownload(string name)
+        {
+            Directory.CreateDirectory(ModelDir);
+            _modelTarget = Path.Combine(ModelDir, name);
+            string temp = _modelTarget + ".download";
+            _modelRequest = UnityWebRequest.Get(ModelBaseUrl + name);
+            _modelRequest.downloadHandler = new DownloadHandlerFile(temp) { removeFileOnAbort = true };
+            _modelRequest.SendWebRequest();
+        }
+
+        private void CancelModelDownload()
+        {
+            _modelRequest?.Abort();
+            _modelRequest?.Dispose();
+            _modelRequest = null;
+        }
+
+        private void FinishModelDownload()
+        {
+            var req = _modelRequest;
+            _modelRequest = null;
+            string temp = _modelTarget + ".download";
+            if (req.result == UnityWebRequest.Result.Success)
+            {
+                if (File.Exists(_modelTarget)) File.Delete(_modelTarget);
+                File.Move(temp, _modelTarget);
+                AssetDatabase.Refresh();
+                Debug.Log($"[Conkist GDK AI] Whisper model saved: {_modelTarget}");
+            }
+            else
+            {
+                Debug.LogError($"[Conkist GDK AI] Whisper model download failed: {req.error}");
+                if (File.Exists(temp)) File.Delete(temp);
+            }
+            req.Dispose();
         }
 
         private void OnGUI()
@@ -137,6 +232,7 @@ namespace Conkist.GDK.AI.Editor
                     break;
                 case Kind.Whisper:
                     WhisperRow();
+                    WhisperModelRow();
                     break;
                 case Kind.ElevenLabs:
                     SymbolRow("ElevenLabs (optional)", ElevenLabsSymbol,
@@ -172,6 +268,9 @@ namespace Conkist.GDK.AI.Editor
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.HelpBox(help, MessageType.None);
         }
+
+        private static bool IsSymbolOn(string symbol) =>
+            PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.Standalone).Split(';').Contains(symbol);
 
         private static void SetSymbol(string symbol, bool on)
         {

@@ -26,6 +26,7 @@ public class ChatUIController : MonoBehaviour
     private Button _sendRecordButton;
 
     private bool _isRecording = false;
+    private IVisualElementScheduledItem _sttReadyPoll;
 
     private void OnEnable()
     {
@@ -44,6 +45,23 @@ public class ChatUIController : MonoBehaviour
         if (_sendButton != null) _sendButton.clicked += OnSendButtonClicked;
         if (_recordButton != null) _recordButton.clicked += OnRecordButtonClicked;
         if (_sendRecordButton != null) _sendRecordButton.clicked += OnSendRecordButtonClicked;
+        if (_sendRecordButton != null)
+        {
+            // While recording the mic button becomes a red stop button: drop the send icon and draw a white square.
+            _sendRecordButton.iconImage = null;
+            _sendRecordButton.AddToClassList("record-stop-button");
+            var stopIcon = new VisualElement { name = "StopIcon", pickingMode = PickingMode.Ignore };
+            stopIcon.AddToClassList("stop-icon");
+            _sendRecordButton.Add(stopIcon);
+        }
+
+        // The STT model loads asynchronously, so the mic button state must be refreshed until it is ready.
+        _sttReadyPoll = root.schedule.Execute(() =>
+        {
+            if (_isRecording || _recordButton == null || _recordButton.enabledSelf == Stt.IsReady) return;
+            if (_messageInput != null && !_messageInput.enabledSelf) return; // chat is busy; SetInputEnabled handles it
+            UpdateActionButtons();
+        }).Every(300);
 
         if (_messageInput != null)
         {
@@ -67,6 +85,7 @@ public class ChatUIController : MonoBehaviour
 
     private void OnDisable()
     {
+        _sttReadyPoll?.Pause();
         if (_sendButton != null) _sendButton.clicked -= OnSendButtonClicked;
         if (_recordButton != null) _recordButton.clicked -= OnRecordButtonClicked;
         if (_sendRecordButton != null) _sendRecordButton.clicked -= OnSendRecordButtonClicked;
@@ -104,7 +123,8 @@ public class ChatUIController : MonoBehaviour
             
         if (_recordButton != null) 
         {
-            bool recordAllowed = SmartMascotsSettings.Current?.speechToText.showRecordButton ?? true;
+            // Hidden when no STT provider is installed (Null provider) or the setting turns it off.
+            bool recordAllowed = Stt.IsAvailable && (SmartMascotsSettings.Current?.speechToText.showRecordButton ?? true);
             _recordButton.style.display = hasText || !recordAllowed ? DisplayStyle.None : DisplayStyle.Flex;
 
             _recordButton.SetEnabled(Stt.IsReady);
@@ -147,7 +167,22 @@ public class ChatUIController : MonoBehaviour
         string text = await Stt.StopAndTranscribeAsync();
         if (!string.IsNullOrWhiteSpace(text))
         {
-            SubmitMessage(text);
+            bool autoSend = SmartMascotsSettings.Current?.speechToText.sendAutomatically ?? true;
+            if (autoSend)
+            {
+                SubmitMessage(text);
+            }
+            else
+            {
+                // Review mode: put the text in the input and let the user edit and send it.
+                SetInputEnabled(true);
+                if (_messageInput != null)
+                {
+                    _messageInput.value = text;
+                    _messageInput.Focus();
+                }
+                UpdateActionButtons();
+            }
         }
         else
         {

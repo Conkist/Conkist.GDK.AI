@@ -81,6 +81,8 @@ namespace Conkist.GDK.AI
     {
         [Tooltip("Shows or hides the record button. The Whisper provider itself needs the CONKIST_WHISPER symbol.")]
         public bool showRecordButton = true;
+        [Tooltip("On = the transcribed text is sent as a message. Off = it is written in the input so the user can review it and send it.")]
+        public bool sendAutomatically = true;
     }
 
     [Serializable]

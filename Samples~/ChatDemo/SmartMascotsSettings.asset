@@ -32,6 +32,7 @@ MonoBehaviour:
     preferEmbeddings: 0
   speechToText:
     showRecordButton: 1
+    sendAutomatically: 1
   textToSpeech:
     enableElevenLabs: 0
     apiKey: 

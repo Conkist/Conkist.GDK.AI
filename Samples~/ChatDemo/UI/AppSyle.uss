@@ -495,3 +495,24 @@
 .exit-button:active {
     background-color: rgb(255, 219, 219);
 }
+
+.record-stop-button {
+    background-color: rgb(226, 74, 74);
+    justify-content: center;
+    align-items: center;
+}
+
+.record-stop-button:hover {
+    background-color: rgb(238, 96, 96);
+}
+
+.record-stop-button:active {
+    background-color: rgb(184, 56, 56);
+}
+
+.stop-icon {
+    width: 40px;
+    height: 40px;
+    background-color: white;
+    border-radius: 8px;
+}
