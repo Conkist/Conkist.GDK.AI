@@ -1,0 +1,27 @@
+{
+    "name": "Conkist.GDK.AI.Editor.ULipSync",
+    "rootNamespace": "Conkist.GDK.AI.Editor",
+    "references": [
+        "Conkist.GDK.AI",
+        "Conkist.GDK.AI.ULipSync"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "ULIPSYNC_ENABLED"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.hecomi.ulipsync",
+            "expression": "",
+            "define": "ULIPSYNC_ENABLED"
+        }
+    ],
+    "noEngineReferences": false
+}

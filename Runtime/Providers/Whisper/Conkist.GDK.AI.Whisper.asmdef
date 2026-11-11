@@ -1,0 +1,23 @@
+{
+    "name": "Conkist.GDK.AI.Whisper",
+    "rootNamespace": "Conkist.GDK.AI.Providers",
+    "references": [
+        "Conkist.GDK.AI",
+        "Conkist.GDK",
+        "VContainer",
+        "com.whisper.unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [
+        "WebGL"
+    ],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "CONKIST_WHISPER"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

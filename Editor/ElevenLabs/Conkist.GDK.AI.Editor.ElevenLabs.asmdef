@@ -1,0 +1,21 @@
+{
+    "name": "Conkist.GDK.AI.Editor.ElevenLabs",
+    "rootNamespace": "Conkist.GDK.AI.Editor",
+    "references": [
+        "Conkist.GDK.AI",
+        "Conkist.GDK.AI.ElevenLabs"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "CONKIST_ELEVENLABS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

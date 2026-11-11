@@ -2,12 +2,14 @@ using System.Collections;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Events;
+using VContainer;
+using Conkist.GDK.AI.Providers;
 
-namespace Conkist.GDK.SmartAgents.TTS
+namespace Conkist.GDK.AI.TTS
 {
     public class VoiceAgentWrapper : MonoBehaviour
     {
-        private VoiceGeneratorBase _voiceGenerator;
+        [Inject] private ITextToSpeech _textToSpeech;
         [SerializeField] private AudioSource _audioSource;
 
         private AudioClip _audioClip;
@@ -15,25 +17,26 @@ namespace Conkist.GDK.SmartAgents.TTS
         public UnityEvent<AudioClip> OnVoiceGenerationCompleted;
         public UnityEvent<string> OnVoiceGenerationFailed;
 
-        public bool HasValidProvider => VoiceGeneratorBase.Instance != null;
+        private ITextToSpeech Tts => _textToSpeech ?? NullTextToSpeech.Instance;
+
+        public bool HasValidProvider => Tts.IsAvailable;
 
         public void GenerateVoice(string text)
         {
             if (!TryGenerateVoice(text))
             {
-                Debug.LogError("[VoiceAgentWrapper] No Voice Generator assigned and no singleton instance found in the scene.");
+                Debug.LogError("[VoiceAgentWrapper] No text-to-speech provider is enabled. Enable one in Conkist > GDK > AI > Setup ElevenLabs and add an AILifetimeScope to the scene.");
             }
         }
 
         public bool TryGenerateVoice(string text, string voiceId = null, System.Action<AudioClip> onCompleted = null, System.Action<string> onFailed = null)
         {
-            _voiceGenerator = VoiceGeneratorBase.Instance;
-            if (_voiceGenerator == null)
+            if (!Tts.IsAvailable)
             {
                 return false;
             }
 
-            StartCoroutine(StartTTSCoroutine(_voiceGenerator.TextToSpeech(text, voiceId), text, onCompleted, onFailed));
+            StartCoroutine(StartTTSCoroutine(Tts.TextToSpeech(text, voiceId), text, onCompleted, onFailed));
             return true;
         }
 

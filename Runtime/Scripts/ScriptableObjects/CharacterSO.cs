@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     [CreateAssetMenu(fileName = "NewCharacter", menuName = "SmartAgents/Character")]
     public class CharacterSO : ScriptableObject

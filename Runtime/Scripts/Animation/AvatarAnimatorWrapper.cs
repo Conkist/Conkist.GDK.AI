@@ -4,9 +4,10 @@ using UnityEngine;
 using UnityEngine.Animations.Rigging;
 using UnityEngine.Playables;
 using UnityEngine.Animations;
-using Conkist.AI.Animation;
+using Conkist.GDK.AI.Animation;
+using Conkist.GDK.AI.Providers;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     [RequireComponent(typeof(Animator))]
     public class AvatarAnimatorWrapper : MonoBehaviour
@@ -16,14 +17,8 @@ namespace Conkist.GDK.SmartAgents
         [SerializeField] private EyeBlinkHandler _eyeBlinkHandler;
         [SerializeField] private AgentWrapper _chatAgentWrapper;
 
-        [Header("uLipSync Settings (Optional)")]
-#if ULIPSYNC_ENABLED
-        [SerializeField] private uLipSync.uLipSync _uLipSync;
-        [SerializeField] private uLipSync.uLipSyncBlendShape _uLipSyncBlendShape;
-#else
-        [SerializeField] private MonoBehaviour _uLipSync;
-        [SerializeField] private MonoBehaviour _uLipSyncBlendShape;
-#endif
+        // Lip sync is found at runtime: any component on the avatar that implements ILipSyncDriver.
+        private ILipSyncDriver _lipSync;
 
         [Header("Animation Rigging (LookAt)")]
         [SerializeField] private Rig _lookRig;
@@ -33,19 +28,28 @@ namespace Conkist.GDK.SmartAgents
         [SerializeField] private float _defaultLookDistance = 3f;
         [SerializeField] private float _defaultLookHeightOffset = 1.5f;
 
+        [Header("Body Clips")]
+        [Tooltip("Avatar mask for animation clips from the character (jump, laugh...). With a mask, the clip plays on top of the Animator Controller only on the masked body parts, so the face layer and lip sync keep running. Empty = the clip replaces the whole Animator output.")]
+        [SerializeField] private AvatarMask _bodyMask;
+        [SerializeField] private float _bodyClipBlendTime = 0.15f;
+
         [Header("Animation Smoothing")]
         [SerializeField] private float _lerpSpeed = 5f;
 
         [Header("Text Lip Sync Fallback")]
         [SerializeField] private bool _enableTextLipSyncFallback = true;
-        [SerializeField] private float _textLipSyncDurationPerCharacter = 0.04f;
-        [SerializeField] private float _textLipSyncMinDuration = 0.75f;
-        [SerializeField] private float _textLipSyncMaxDuration = 4f;
+        [Tooltip("Animator layer (with the face avatar mask) that holds the talking motion. Reference the talking parameter (IsSpeaking, Speaking, Speak or Talk) only in this layer. Empty or missing = no animator talking motion; the blend shape lip sync still runs.")]
+        [SerializeField] private string _faceLayerName = "Face Layer";
+        [SerializeField] private float _textLipSyncDurationPerCharacter = 0.08f;
+        [SerializeField] private float _textLipSyncMinDuration = 1f;
+        [SerializeField] private float _textLipSyncMaxDuration = 7.5f;
 
         private Dictionary<string, AnimationClip> _animationDict = new Dictionary<string, AnimationClip>();
         private PlayableGraph _playableGraph;
+        private AnimatorControllerPlayable _controllerPlayable;
         private Coroutine _animationCoroutine;
         private Coroutine _textLipSyncCoroutine;
+        private bool _audioDrivenIdle = true;
 
         [Header("Debug Settings")]
         public bool showDebugGUI = true;
@@ -114,11 +118,13 @@ namespace Conkist.GDK.SmartAgents
                 Debug.LogWarning("[AvatarAnimatorWrapper] AgentWrapper component is missing on this GameObject and all parents/children.");
             }
 
-            ResolveULipSyncReferences();
+            ResolveLipSync();
         }
 
         private void Start()
         {
+            LogAnimatorSetup();
+
             // Define the default local look target position (forward relative to character)
             _defaultLocalLookPos = new Vector3(0, _defaultLookHeightOffset, _defaultLookDistance);
 
@@ -143,9 +149,9 @@ namespace Conkist.GDK.SmartAgents
 
             if (_animator != null)
             {
-                _animator.SetFloat("Pleasure", _currentPleasure);
-                _animator.SetFloat("Arousal", _currentArousal);
-                _animator.SetFloat("Dominance", _currentDominance);
+                SetAnimFloat("Pleasure", _currentPleasure);
+                SetAnimFloat("Arousal", _currentArousal);
+                SetAnimFloat("Dominance", _currentDominance);
             }
 
             // Populate animation dictionary from CharacterSO
@@ -218,7 +224,7 @@ namespace Conkist.GDK.SmartAgents
                 // Detect discrete mood changes to fire trigger
                 if (_characterActor.currentPleasure != _lastPleasure || _characterActor.currentArousal != _lastArousal || _characterActor.currentDominance != _lastDominance)
                 {
-                    _animator.SetTrigger("EmotionChange");
+                    SetAnimTrigger("EmotionChange");
                     _lastPleasure = _characterActor.currentPleasure;
                     _lastArousal = _characterActor.currentArousal;
                     _lastDominance = _characterActor.currentDominance;
@@ -231,9 +237,9 @@ namespace Conkist.GDK.SmartAgents
             _currentDominance = Mathf.MoveTowards(_currentDominance, _targetDominance, Time.deltaTime * _lerpSpeed);
 
             // Apply to Animator
-            _animator.SetFloat("Pleasure", _currentPleasure);
-            _animator.SetFloat("Arousal", _currentArousal);
-            _animator.SetFloat("Dominance", _currentDominance);
+            SetAnimFloat("Pleasure", _currentPleasure);
+            SetAnimFloat("Arousal", _currentArousal);
+            SetAnimFloat("Dominance", _currentDominance);
         }
 
         private void UpdateLookRig()
@@ -320,22 +326,19 @@ namespace Conkist.GDK.SmartAgents
                 _textLipSyncCoroutine = null;
             }
 
-            ResolveULipSyncReferences();
+            ResolveLipSync();
 
-            // Animate simple lipsync using animator parameters based on message duration
-            if (!TryAnimateSimpleLipSync(message))
-            {
-                Debug.LogWarning("[AvatarAnimatorWrapper] Text lipsync fallback was requested but no lip sync parameter was found on animator.");
-            }
+            // Animator-driven talking motion: only on the face-masked layer (see _faceLayerName).
+            bool animatorTalking = TryAnimateSimpleLipSync(message);
 
             float duration = Mathf.Clamp(message.Length * _textLipSyncDurationPerCharacter, _textLipSyncMinDuration, _textLipSyncMaxDuration);
-            if (_uLipSyncBlendShape != null)
+            if (_lipSync != null && _lipSync.IsAvailable)
             {
                 _textLipSyncCoroutine = StartCoroutine(CoTextDecodedLipSync(message, duration));
             }
-            else
+            else if (!animatorTalking)
             {
-                Debug.LogWarning("[AvatarAnimatorWrapper] uLipSyncBlendShape component is missing. Can only use animator parameter fallback.");
+                Debug.LogWarning("[AvatarAnimatorWrapper] Text lip sync has nothing to drive: no lip sync driver (Conkist > GDK > AI > Setup Lipsync) and no talking parameter on the face layer.");
             }
         }
 
@@ -347,30 +350,38 @@ namespace Conkist.GDK.SmartAgents
                 _textLipSyncCoroutine = null;
             }
 
-            ResolveULipSyncReferences();
-            if (_uLipSync != null)
+            ResolveLipSync();
+            if (_lipSync != null && AudioLipSyncEnabled)
             {
-                _uLipSync.enabled = true;
+                _lipSync.SetAudioDriven(true);
             }
         }
 
-        private void ResolveULipSyncReferences()
+        /// <summary>True when uLipSync may follow live audio: lip sync is on in SmartMascotsSettings and a driver is present.</summary>
+        public bool AudioLipSyncEnabled
         {
-#if ULIPSYNC_ENABLED
-            if (_uLipSync == null)
+            get
             {
-                _uLipSync = GetComponent<uLipSync.uLipSync>();
-                if (_uLipSync == null) _uLipSync = GetComponentInChildren<uLipSync.uLipSync>();
-                if (_uLipSync == null) _uLipSync = GetComponentInParent<uLipSync.uLipSync>();
+                ResolveLipSync();
+                return (SmartMascotsSettings.Current?.lipSync.enabled ?? true) && _lipSync != null && _lipSync.IsAvailable;
             }
+        }
 
-            if (_uLipSyncBlendShape == null)
-            {
-                _uLipSyncBlendShape = GetComponent<uLipSync.uLipSyncBlendShape>();
-                if (_uLipSyncBlendShape == null) _uLipSyncBlendShape = GetComponentInChildren<uLipSync.uLipSyncBlendShape>();
-                if (_uLipSyncBlendShape == null) _uLipSyncBlendShape = GetComponentInParent<uLipSync.uLipSyncBlendShape>();
-            }
-#endif
+        /// <summary>
+        /// Called once by the agent. Audio-driven only when lip sync is on AND a TTS provider is active;
+        /// otherwise uLipSync stays off and PlayTextLipSync drives the mouth from the text.
+        /// </summary>
+        public void ConfigureLipSyncMode(bool ttsActive)
+        {
+            ResolveLipSync();
+            _audioDrivenIdle = ttsActive && AudioLipSyncEnabled;
+            if (_lipSync != null) _lipSync.SetAudioDriven(_audioDrivenIdle);
+        }
+
+        private void ResolveLipSync()
+        {
+            if (_lipSync == null) _lipSync = GetComponentInChildren<ILipSyncDriver>(true);
+            if (_lipSync == null) _lipSync = GetComponentInParent<ILipSyncDriver>();
         }
 
         private struct SyllableInfo
@@ -474,12 +485,10 @@ namespace Conkist.GDK.SmartAgents
 
         private IEnumerator CoTextDecodedLipSync(string message, float duration)
         {
-            if (_uLipSyncBlendShape == null) yield break;
+            ResolveLipSync();
+            if (_lipSync == null || !_lipSync.IsAvailable) yield break;
 
-            if (_uLipSync != null)
-            {
-                _uLipSync.enabled = false;
-            }
+            _lipSync.SetAudioDriven(false);
 
             var syllables = ParseSyllables(message);
             if (syllables.Count == 0) yield break;
@@ -502,7 +511,7 @@ namespace Conkist.GDK.SmartAgents
             float elapsed = 0f;
             while (elapsed < duration)
             {
-                if (_uLipSyncBlendShape == null) break;
+                if (_lipSync == null) break;
 
                 int currentSyllableIndex = 0;
                 for (int i = 0; i < syllableEndTimes.Length; i++)
@@ -517,53 +526,16 @@ namespace Conkist.GDK.SmartAgents
                 var currentSyllable = syllables[currentSyllableIndex];
 
                 string phoneme = currentSyllable.phoneme;
-                bool isSilence = (phoneme == "-");
-#if ULIPSYNC_ENABLED
-                float targetRawVolume = isSilence ? 0f : Mathf.Pow(10f, _uLipSyncBlendShape.maxVolume);
-
-                var ratios = new Dictionary<string, float>();
-                if (!isSilence)
-                {
-                    ratios[phoneme] = 1f;
-                }
-                else
-                {
-                    ratios["-"] = 1f;
-                }
-
-                var info = new uLipSync.LipSyncInfo
-                {
-                    phoneme = phoneme,
-                    volume = isSilence ? 0f : 1f,
-                    rawVolume = targetRawVolume,
-                    phonemeRatios = ratios
-                };
-
-                _uLipSyncBlendShape.OnLipSyncUpdate(info);
-#endif
+                _lipSync.ShowViseme(phoneme);
 
                 yield return null;
                 elapsed += Time.deltaTime;
             }
 
-            if (_uLipSyncBlendShape != null)
+            if (_lipSync != null)
             {
-#if ULIPSYNC_ENABLED
-                var silentRatios = new Dictionary<string, float> { { "-", 1f } };
-                var silentInfo = new uLipSync.LipSyncInfo
-                {
-                    phoneme = "-",
-                    volume = 0f,
-                    rawVolume = 0f,
-                    phonemeRatios = silentRatios
-                };
-                _uLipSyncBlendShape.OnLipSyncUpdate(silentInfo);
-#endif
-            }
-
-            if (_uLipSync != null)
-            {
-                _uLipSync.enabled = true;
+                _lipSync.Silence();
+                _lipSync.SetAudioDriven(_audioDrivenIdle);
             }
 
             _textLipSyncCoroutine = null;
@@ -572,6 +544,11 @@ namespace Conkist.GDK.SmartAgents
         private bool TryAnimateSimpleLipSync(string message)
         {
             if (_animator == null) return false;
+
+            // The talking motion must stay on the face layer (face avatar mask); never drive the whole body.
+            int faceLayer = string.IsNullOrEmpty(_faceLayerName) ? -1 : _animator.GetLayerIndex(_faceLayerName);
+            if (faceLayer < 0) return false;
+            SetAnimLayerWeight(faceLayer, 1f);
 
             float duration = Mathf.Clamp(message.Length * _textLipSyncDurationPerCharacter, _textLipSyncMinDuration, _textLipSyncMaxDuration);
 
@@ -589,13 +566,13 @@ namespace Conkist.GDK.SmartAgents
 
             if (HasAnimatorParameter("Speak", AnimatorControllerParameterType.Trigger))
             {
-                _animator.SetTrigger("Speak");
+                SetAnimTrigger("Speak");
                 return true;
             }
 
             if (HasAnimatorParameter("Talk", AnimatorControllerParameterType.Trigger))
             {
-                _animator.SetTrigger("Talk");
+                SetAnimTrigger("Talk");
                 return true;
             }
 
@@ -621,11 +598,11 @@ namespace Conkist.GDK.SmartAgents
         {
             if (_animator == null) yield break;
 
-            _animator.SetBool(parameterName, value);
+            SetAnimBool(parameterName, value);
             yield return new WaitForSeconds(duration);
             if (_animator != null)
             {
-                _animator.SetBool(parameterName, !value);
+                SetAnimBool(parameterName, !value);
             }
         }
 
@@ -653,11 +630,45 @@ namespace Conkist.GDK.SmartAgents
 
         private IEnumerator CoPlayAnimationClip(AnimationClip clip)
         {
-            // Play the clip using Playables API
-            AnimationPlayableUtilities.PlayClip(_animator, clip, out _playableGraph);
+            AnimationLayerMixerPlayable mixer = default;
+            bool masked = _bodyMask != null && _animator.runtimeAnimatorController != null;
+            Debug.Log($"[AvatarAnimatorWrapper] Body clip '{clip.name}' ({clip.length:0.0}s, humanMotion={clip.humanMotion}) playing {(masked ? "masked over the controller" : "replacing the controller")}.");
 
-            // Wait for clip duration
-            yield return new WaitForSeconds(clip.length);
+            if (masked)
+            {
+                mixer = BuildMaskedClipGraph(clip);
+            }
+            else
+            {
+                // No mask: the clip replaces the whole Animator output.
+                AnimationPlayableUtilities.PlayClip(_animator, clip, out _playableGraph);
+            }
+
+            float length = Mathf.Max(clip.length, 0.01f);
+            float blend = masked ? Mathf.Min(_bodyClipBlendTime, length * 0.5f) : 0f;
+
+            if (masked && blend > 0f)
+            {
+                for (float t = 0f; t < blend; t += Time.deltaTime)
+                {
+                    if (!_playableGraph.IsValid()) yield break;
+                    mixer.SetInputWeight(1, t / blend);
+                    yield return null;
+                }
+                if (_playableGraph.IsValid()) mixer.SetInputWeight(1, 1f);
+            }
+
+            yield return new WaitForSeconds(Mathf.Max(0f, length - 2f * blend));
+
+            if (masked && blend > 0f)
+            {
+                for (float t = 0f; t < blend; t += Time.deltaTime)
+                {
+                    if (!_playableGraph.IsValid()) yield break;
+                    mixer.SetInputWeight(1, 1f - t / blend);
+                    yield return null;
+                }
+            }
 
             // Clean up graph to return control back to Animator Controller
             if (_playableGraph.IsValid())
@@ -671,6 +682,82 @@ namespace Conkist.GDK.SmartAgents
             }
 
             _animationCoroutine = null;
+        }
+
+        // Controller on input 0 (face layer, emotions and lip sync keep running), the clip on input 1 limited by the body mask.
+        private AnimationLayerMixerPlayable BuildMaskedClipGraph(AnimationClip clip)
+        {
+            _playableGraph = PlayableGraph.Create("Conkist Body Clip");
+            _playableGraph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+            var output = AnimationPlayableOutput.Create(_playableGraph, "Animation", _animator);
+
+            var mixer = AnimationLayerMixerPlayable.Create(_playableGraph, 2);
+            _controllerPlayable = AnimatorControllerPlayable.Create(_playableGraph, _animator.runtimeAnimatorController);
+            var clipPlayable = AnimationClipPlayable.Create(_playableGraph, clip);
+
+            _playableGraph.Connect(_controllerPlayable, 0, mixer, 0);
+            _playableGraph.Connect(clipPlayable, 0, mixer, 1);
+            mixer.SetInputWeight(0, 1f);
+            mixer.SetInputWeight(1, 0f);
+            mixer.SetLayerMaskFromAvatarMask(1, _bodyMask);
+
+            // The new controller instance starts from defaults: copy the live parameter values.
+            foreach (var parameter in _animator.parameters)
+            {
+                switch (parameter.type)
+                {
+                    case AnimatorControllerParameterType.Float: _controllerPlayable.SetFloat(parameter.name, _animator.GetFloat(parameter.name)); break;
+                    case AnimatorControllerParameterType.Int: _controllerPlayable.SetInteger(parameter.name, _animator.GetInteger(parameter.name)); break;
+                    case AnimatorControllerParameterType.Bool: _controllerPlayable.SetBool(parameter.name, _animator.GetBool(parameter.name)); break;
+                }
+            }
+
+            output.SetSourcePlayable(mixer);
+            _playableGraph.Play();
+            return mixer;
+        }
+
+        // Animator writes go to both the Animator and the masked graph's controller (when one is playing).
+        private void SetAnimFloat(string name, float value)
+        {
+            _animator.SetFloat(name, value);
+            if (_controllerPlayable.IsValid()) _controllerPlayable.SetFloat(name, value);
+        }
+
+        private void SetAnimBool(string name, bool value)
+        {
+            _animator.SetBool(name, value);
+            if (_controllerPlayable.IsValid()) _controllerPlayable.SetBool(name, value);
+        }
+
+        private void SetAnimTrigger(string name)
+        {
+            _animator.SetTrigger(name);
+            if (_controllerPlayable.IsValid()) _controllerPlayable.SetTrigger(name);
+        }
+
+        private void SetAnimLayerWeight(int layer, float weight)
+        {
+            _animator.SetLayerWeight(layer, weight);
+            if (_controllerPlayable.IsValid()) _controllerPlayable.SetLayerWeight(layer, weight);
+        }
+
+        // One line at start so a body that does not move can be traced: controller, avatar, layers and masks.
+        private void LogAnimatorSetup()
+        {
+            if (_animator == null) return;
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"[AvatarAnimatorWrapper] Animator '{_animator.name}': enabled={_animator.enabled}, ");
+            sb.Append($"controller={(_animator.runtimeAnimatorController != null ? _animator.runtimeAnimatorController.name : "NONE")}, ");
+            sb.Append($"avatar={(_animator.avatar != null ? _animator.avatar.name : "NONE")} (human={_animator.isHuman}, valid={_animator.avatar != null && _animator.avatar.isValid}), ");
+            sb.Append($"culling={_animator.cullingMode}, bodyMask={(_bodyMask != null ? _bodyMask.name : "none")}, layers=[");
+            for (int i = 0; i < _animator.layerCount; i++)
+            {
+                sb.Append(_animator.GetLayerName(i)).Append(':').Append(_animator.GetLayerWeight(i).ToString("0.##"));
+                if (i < _animator.layerCount - 1) sb.Append(", ");
+            }
+            sb.Append(']');
+            Debug.Log(sb.ToString());
         }
 
         private void HandleFeedbackReceived(AgentActions feedback)
@@ -701,7 +788,7 @@ namespace Conkist.GDK.SmartAgents
                 }
             }
 
-            if (!string.IsNullOrEmpty(animName))
+            if (!string.IsNullOrEmpty(animName) && !string.Equals(animName, "none", System.StringComparison.OrdinalIgnoreCase))
             {
                 Debug.Log($"[AvatarAnimatorWrapper] Received animation command from AgentWrapper: '{animName}'");
                 PlayAnimation(animName);

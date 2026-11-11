@@ -1,4 +1,4 @@
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     /// <summary>
     /// Event triggered when an AI agent produces a chat message response.

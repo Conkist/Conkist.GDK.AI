@@ -1,0 +1,19 @@
+{
+    "name": "Conkist.GDK.AI.Editor.Settings",
+    "rootNamespace": "Conkist.GDK.AI.Editor",
+    "references": [
+        "Conkist.GDK.AI",
+        "undream.llmunity.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

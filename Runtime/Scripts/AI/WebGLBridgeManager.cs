@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using Conkist.GDK;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     [System.Serializable]
     public class ScreenSizeData

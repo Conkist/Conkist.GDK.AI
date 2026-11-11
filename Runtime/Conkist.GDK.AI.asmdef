@@ -1,13 +1,12 @@
 {
-    "name": "Conkist.GDK.SmartAgents",
-    "rootNamespace": "Conkist.GDK.SmartAgents",
+    "name": "Conkist.GDK.AI",
+    "rootNamespace": "Conkist.GDK.AI",
     "references": [
         "undream.llmunity.Runtime",
-        "com.whisper.unity",
         "Unity.Nuget.Newtonsoft-Json",
         "Conkist.GDK",
         "Unity.Animation.Rigging",
-        "uLipSync.Runtime"
+        "VContainer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

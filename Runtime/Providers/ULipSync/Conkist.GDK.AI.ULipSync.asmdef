@@ -1,0 +1,25 @@
+{
+    "name": "Conkist.GDK.AI.ULipSync",
+    "rootNamespace": "Conkist.GDK.AI.Providers",
+    "references": [
+        "Conkist.GDK.AI",
+        "uLipSync.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "ULIPSYNC_ENABLED"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.hecomi.ulipsync",
+            "expression": "",
+            "define": "ULIPSYNC_ENABLED"
+        }
+    ],
+    "noEngineReferences": false
+}

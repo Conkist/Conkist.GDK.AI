@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Conkist.AI.Animation
+namespace Conkist.GDK.AI.Animation
 {
     [Serializable]
     public class BlendShapeConfig

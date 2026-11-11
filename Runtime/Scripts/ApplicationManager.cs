@@ -2,15 +2,15 @@ using Conkist.GDK;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     [DefaultExecutionOrder(-90)]
     public class ApplicationManager : SingletonBehaviour<ApplicationManager>
     {
         [Header("Settings")]
-        [SerializeField] private ApplicationSettingsSO _settings;
+        [SerializeField] private SmartMascotsSettings _settings;
 
-        public ApplicationSettingsSO Settings
+        public SmartMascotsSettings Settings
         {
             get => _settings;
             set => _settings = value;

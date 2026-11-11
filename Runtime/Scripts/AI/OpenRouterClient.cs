@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using Conkist.GDK.Serialization;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     [System.Serializable]
     public class OpenRouterMessage

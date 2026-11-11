@@ -1,4 +1,4 @@
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     [System.Serializable]
     public class AgentActions

@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using System.Runtime.InteropServices;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     public class WebGLAgentWrapper : AgentWrapper
     {

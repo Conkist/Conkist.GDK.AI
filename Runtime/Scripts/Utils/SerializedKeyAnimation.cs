@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     [Serializable]
     public class SerializedKeyAnimation

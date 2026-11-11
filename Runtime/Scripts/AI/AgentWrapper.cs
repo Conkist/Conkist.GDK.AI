@@ -3,9 +3,9 @@ using UnityEngine.Events;
 using System.Collections;
 using System.Collections.Generic;
 using Conkist.GDK.Serialization;
-using Conkist.GDK.SmartAgents.TTS;
+using Conkist.GDK.AI.TTS;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     public abstract class AgentWrapper : MonoBehaviour
     {
@@ -36,6 +36,13 @@ namespace Conkist.GDK.SmartAgents
             if (_voiceAgentWrapper != null)
             {
                 _voiceAgentWrapper.OnVoiceGenerationFailed.AddListener(HandleVoiceGenerationFailed);
+            }
+
+            // uLipSync follows audio only when lip sync is on in the settings AND a TTS provider (ElevenLabs) is active.
+            // Otherwise it is switched off and the text-simulated lip sync drives the mouth.
+            if (_avatarAnimatorWrapper != null)
+            {
+                _avatarAnimatorWrapper.ConfigureLipSyncMode(_voiceAgentWrapper != null && _voiceAgentWrapper.HasValidProvider);
             }
         }
 
@@ -140,11 +147,37 @@ namespace Conkist.GDK.SmartAgents
             return cleaned.Trim();
         }
 
+        // Closes strings, arrays and objects left open when the LLM stops early, so a cut answer still plays.
+        private static string CloseTruncatedJson(string json)
+        {
+            var stack = new Stack<char>();
+            bool inString = false, escaped = false;
+            foreach (char c in json)
+            {
+                if (inString) { if (escaped) escaped = false; else if (c == '\\') escaped = true; else if (c == '"') inString = false; continue; }
+                if (c == '"') inString = true;
+                else if (c == '{') stack.Push('}');
+                else if (c == '[') stack.Push(']');
+                else if ((c == '}' || c == ']') && stack.Count > 0) stack.Pop();
+            }
+            if (stack.Count == 0 && !inString) return json;
+            var sb = new System.Text.StringBuilder(json);
+            if (inString) sb.Append('"');
+            string t = sb.ToString().TrimEnd();
+            if (t.EndsWith(",")) t = t.Substring(0, t.Length - 1);
+            sb = new System.Text.StringBuilder(t);
+            if (t.EndsWith(":")) sb.Append("null");
+            while (stack.Count > 0) sb.Append(stack.Pop());
+            Debug.LogWarning("[AgentWrapper] LLM answer was cut off; closed the JSON automatically.");
+            return sb.ToString();
+        }
+
         protected AgentActions[] DeserializeAgentFeedbacks(string json)
         {
             if (string.IsNullOrEmpty(json)) return null;
 
             string trimmed = json.Trim();
+            if (trimmed.StartsWith("{")) trimmed = json = CloseTruncatedJson(trimmed);
             if (!trimmed.StartsWith("{") && !trimmed.StartsWith("["))
             {
                 var action = new AgentActions
@@ -264,12 +297,10 @@ namespace Conkist.GDK.SmartAgents
                 voiceStarted = _voiceAgentWrapper.TryGenerateVoice(message, voiceId);
             }
 
-            if (voiceStarted)
+            if (voiceStarted && _avatarAnimatorWrapper != null && _avatarAnimatorWrapper.AudioLipSyncEnabled)
             {
-                if (_avatarAnimatorWrapper != null)
-                {
-                    _avatarAnimatorWrapper.OnAudioSpeechStarted();
-                }
+                // Voice plays and lip sync is on: uLipSync follows the audio.
+                _avatarAnimatorWrapper.OnAudioSpeechStarted();
             }
             else
             {

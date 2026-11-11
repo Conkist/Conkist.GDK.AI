@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using Conkist.GDK.Serialization;
 using Conkist.GDK;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     public enum LLMProvider
     {
@@ -17,69 +17,104 @@ namespace Conkist.GDK.SmartAgents
         OpenRouter
     }
 
+    [DefaultExecutionOrder(-200)] // before LLMUnity's LLM.Awake, so model overrides land before the server starts
     public class ChatAgentWrapper : AgentWrapper
     {
-        [Header("Custom Overrides")]
-        [SerializeField] private bool _useCustomProvider = false;
-        [SerializeField] private LLMProvider _customProvider = LLMProvider.LLMUnity;
-        [SerializeField] private bool _useCustomModel = false;
-        [SerializeField] private string _customModel;
+        [Header("Agent Overrides (applied after SmartMascotsSettings)")]
+        [SerializeField] private bool _overrideProvider;
+        [SerializeField] private LLMProvider _provider = LLMProvider.LLMUnity;
+        [SerializeField] private bool _overrideModel;
+        [Tooltip("LLMUnity model file name when the provider is LLMUnity; OpenRouter model id or preset slug when online.")]
+        [SerializeField] private string _model;
 
+        /// <summary>Provider after the agent override. Setting it writes the agent override only; the shared settings asset is never changed.</summary>
         public LLMProvider ActiveProvider
         {
-            get
-            {
-                if (_useCustomProvider)
-                {
-                    return _customProvider;
-                }
-                var settings = GetApplicationSettings();
-                if (settings != null)
-                {
-                    return settings.defaultProvider;
-                }
-                return LLMProvider.LLMUnity;
-            }
+            get => ResolveProvider();
             set
             {
-                if (_useCustomProvider)
-                {
-                    _customProvider = value;
-                }
-                else
-                {
-                    var settings = GetApplicationSettings();
-                    if (settings != null)
-                    {
-                        settings.defaultProvider = value;
-                    }
-                }
+                _overrideProvider = true;
+                _provider = value;
                 UpdateActiveProviderCache();
             }
         }
 
-        private ApplicationSettingsSO GetApplicationSettings()
+        private static SmartMascotsSettings GetApplicationSettings() => SmartMascotsSettings.Current;
+
+        // Scene defaults -> SmartMascotsSettings (base) -> this agent's override.
+        private LLMProvider ResolveProvider()
         {
-            if (ApplicationManager.HasInstance)
-            {
-                return ApplicationManager.Instance.Settings;
-            }
-            return null;
+            if (_overrideProvider) return _provider;
+            var settings = GetApplicationSettings();
+            return settings != null ? settings.provider : LLMProvider.LLMUnity;
         }
 
+        private string ResolveModel(LLMProvider provider, SmartMascotsSettings settings)
+        {
+            if (_overrideModel && !string.IsNullOrEmpty(_model)) return _model;
+            if (settings == null) return null;
+            return provider == LLMProvider.LLMUnity ? settings.offline.model : settings.online.model;
+        }
+
+        // Needs the grammar: without it nothing stops the model from answering "none".
+        private bool RequireAnimation
+        {
+            get
+            {
+                var offline = GetApplicationSettings()?.offline;
+                return offline == null || (offline.jsonGrammar && offline.requireAnimation);
+            }
+        }
+
+        private bool RagEnabled => GetApplicationSettings()?.rag.enabled ?? true;
+        private int RagTopResults => Mathf.Max(1, GetApplicationSettings()?.rag.topResults ?? 3);
+        private bool RagForceRebuild => GetApplicationSettings()?.rag.forceRebuild ?? false;
+        private bool RagPreferEmbeddings => GetApplicationSettings()?.rag.preferEmbeddings ?? true;
+
         [Header("Prompt Settings")]
+        [Tooltip("Guardrails, modifier logic, output format and JSON schema. Saved in the prefab. Empty = built-in default.")]
         [TextArea(5, 10)]
         [SerializeField] private string _systemPromptPrefix;
 
         [SerializeField] private OpenRouterClient _openRouterClient;
 
-        [Header("RAG (Knowledge Base) Settings")]
+        [Header("RAG (settings are in SmartMascotsSettings > RAG)")]
 #if !UNITY_WEBGL
         [SerializeField] private RAG _rag;
 #endif
-        [SerializeField] private bool _useRAG = true;
-        [SerializeField] private bool _forceRebuildRAG = false;
-        [SerializeField] private int _numRAGResults = 3;
+
+        // JSON schema for {thought, actions[]}; same shape as AgentFeedback / AgentActions.
+        // When the character has animations, "task" is limited to "none" or animate(<one of its keys>), so the model cannot invent names.
+        private static string BuildActionsJsonSchema(CharacterSO characterSO, bool allowNone)
+        {
+            string task = "{\"type\":\"string\"}";
+            if (characterSO != null && characterSO.animations != null && characterSO.animations.Length > 0)
+            {
+                // Animation keys first; "none" only when allowed, and then last.
+                var values = new StringBuilder();
+                foreach (var anim in characterSO.animations)
+                {
+                    if (anim == null || string.IsNullOrEmpty(anim.key)) continue;
+                    values.Append("\"animate(").Append(anim.key.Replace("\\", "\\\\").Replace("\"", "\\\"")).Append(")\",");
+                }
+                if (allowNone) values.Append("\"none\"");
+                task = "{\"enum\":[" + values.ToString().TrimEnd(',') + "]}";
+            }
+
+            return "{\"type\":\"object\",\"properties\":{" +
+                "\"thought\":{\"type\":\"string\"}," +
+                "\"actions\":{\"type\":\"array\",\"maxItems\":3,\"items\":{\"type\":\"object\",\"properties\":{" +
+                "\"message\":{\"type\":\"string\"}," +
+                "\"pleasure_mod\":{\"type\":\"number\"}," +
+                "\"arousal_mod\":{\"type\":\"number\"}," +
+                "\"dominance_mod\":{\"type\":\"number\"}," +
+                "\"task\":" + task + "," +
+                "\"target\":{\"type\":\"string\"}," +
+                "\"duration\":{\"type\":\"number\"}}," +
+                "\"required\":[\"message\",\"pleasure_mod\",\"arousal_mod\",\"dominance_mod\",\"task\",\"target\",\"duration\"]," +
+                "\"additionalProperties\":false}}}," +
+                "\"required\":[\"thought\",\"actions\"],\"additionalProperties\":false}";
+        }
 
         private const string DefaultSystemPromptPrefix =
             "You are a companion character in a game/experience. Respond in a JSON format matching the schema requested below. " +
@@ -89,6 +124,8 @@ namespace Conkist.GDK.SmartAgents
 #if !UNITY_WEBGL
         private LLMAgent _llmAgent;
 #endif
+        private readonly KeywordKnowledgeIndex _keywordIndex = new KeywordKnowledgeIndex();
+        private bool _embeddingRagReady;
         private string _systemPrompt;
         private bool _isQuitting = false;
         private LLMProvider _activeProviderRuntime = LLMProvider.LLMUnity;
@@ -101,12 +138,72 @@ namespace Conkist.GDK.SmartAgents
 #endif
             UpdateActiveProviderCache();
 #if !UNITY_WEBGL
+            ApplyLLMUnityOverrides();
+#endif
+#if !UNITY_WEBGL
             if (_activeProviderRuntime == LLMProvider.LLMUnity && _llmAgent == null)
             {
                 Debug.LogError("[ChatAgentWrapper] LLMUnity provider is selected, but LLMAgent component is missing on this GameObject!");
             }
 #endif
         }
+
+#if !UNITY_WEBGL
+        /// <summary>
+        /// Base: SmartMascotsSettings.offline. Then the agent override model. Runs before the LLM starts.
+        /// </summary>
+        private void ApplyLLMUnityOverrides()
+        {
+            if (_llmAgent == null) return;
+            if (_activeProviderRuntime != LLMProvider.LLMUnity) return;
+
+            var settings = GetApplicationSettings();
+
+            // Grammar-constrained output: the model cannot stop in the middle of the JSON.
+            if ((settings?.offline.jsonGrammar ?? true) && string.IsNullOrEmpty(_llmAgent.grammar))
+            {
+                _llmAgent.grammar = BuildActionsJsonSchema(characterActor != null ? characterActor.characterSO : null, !RequireAnimation);
+            }
+
+            if (_llmAgent.remote) return;
+            // LLMAgent links its LLM in its own Awake, which runs after this one; look it up here.
+            var llm = _llmAgent.llm != null ? _llmAgent.llm : FindFirstObjectByType<LLM>(FindObjectsInactive.Include);
+            if (llm == null) return;
+            if (llm.started)
+            {
+                Debug.LogWarning("[ChatAgentWrapper] LLM already started; model and settings overrides skipped.");
+                return;
+            }
+
+            string model = ResolveModel(LLMProvider.LLMUnity, settings);
+            if (!string.IsNullOrEmpty(model)) llm.SetModel(model);
+
+            if (settings == null || !settings.offline.applyToSceneLLM) return;
+            var o = settings.offline;
+            llm.contextSize = o.contextSize;
+            // -1 splits the context across every client (agent + embedder), leaving too little per slot for the prompt: answers got cut mid-JSON.
+            llm.parallelPrompts = 1;
+            llm.numGPULayers = o.numGPULayers;
+            llm.numThreads = o.numThreads;
+            // The reasoning setter talks to the native service, which does not exist before the LLM starts.
+            if (llm.reasoning != o.reasoning) _ = ApplyReasoningWhenReady(llm, o.reasoning);
+            _llmAgent.temperature = o.temperature;
+            _llmAgent.numPredict = o.numPredict;
+        }
+
+        private static async System.Threading.Tasks.Task ApplyReasoningWhenReady(LLM llm, bool reasoning)
+        {
+            try
+            {
+                await llm.WaitUntilReady();
+                if (llm != null && llm.started) llm.SetReasoning(reasoning);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[ChatAgentWrapper] Could not set thinking mode: {ex.Message}");
+            }
+        }
+#endif
 
         private void UpdateActiveProviderCache()
         {
@@ -141,11 +238,19 @@ namespace Conkist.GDK.SmartAgents
                 return "";
             }
 
-            int count = characterSO.animations.Length;
-            return "[Animation Rules]\nThis character has " + count + " available animation keys. " +
-                "If you choose an animate task, use one of the exact keys from this character's current animation list. " +
-                "Do not invent, paraphrase, shorten, or normalize animation names. " +
-                "If no exact key applies, set task = \"none\".";
+            var sb = new StringBuilder();
+            sb.AppendLine("[Animation Rules]");
+            sb.AppendLine(RequireAnimation
+                ? "Every action must set task = \"animate(key)\" using exactly one of these keys: pick the closest one. Do not invent, paraphrase, shorten, or normalize names."
+                : "To perform a body animation, set task = \"animate(key)\" using exactly one of these keys. Do not invent, paraphrase, shorten, or normalize names. If none fits, set task = \"none\".");
+            foreach (var anim in characterSO.animations)
+            {
+                if (anim == null || string.IsNullOrEmpty(anim.key)) continue;
+                sb.Append("- ").Append(anim.key);
+                if (!string.IsNullOrEmpty(anim.description)) sb.Append(": ").Append(anim.description);
+                sb.AppendLine();
+            }
+            return sb.ToString().TrimEnd();
         }
 
         private string[] FindRelevantAnimationKeys(string userText, CharacterSO characterSO)
@@ -257,7 +362,7 @@ namespace Conkist.GDK.SmartAgents
             UpdateActiveProviderCache();
             InitializeSystemPrompt();
 
-            if (_useRAG)
+            if (RagEnabled)
             {
                 await InitializeRAG();
             }
@@ -297,36 +402,11 @@ namespace Conkist.GDK.SmartAgents
             if (_openRouterClient == null) return;
 
             var settings = GetApplicationSettings();
+            if (settings != null && !string.IsNullOrEmpty(settings.online.apiKey)) _openRouterClient.ApiKey = settings.online.apiKey;
 
-            // Resolve API key
-            string apiKey = "";
-            if (settings != null)
-            {
-                apiKey = settings.defaultOpenRouterApiKey;
-            }
-            else
-            {
-                // Fallback to whatever is serialized directly in OpenRouterClient
-                apiKey = _openRouterClient.ApiKey;
-            }
-            _openRouterClient.ApiKey = apiKey;
-
-            // Resolve Model (which can be a model ID or preset slug)
-            string modelOrPreset = "";
-            if (_useCustomModel && !string.IsNullOrEmpty(_customModel))
-            {
-                modelOrPreset = _customModel;
-            }
-            else if (settings != null)
-            {
-                modelOrPreset = settings.defaultOpenRouterModel;
-            }
-            else
-            {
-                // Fallback to whatever is serialized directly in OpenRouterClient
-                modelOrPreset = _openRouterClient.Model;
-            }
-            _openRouterClient.Model = modelOrPreset;
+            // Base from settings, then the agent override; otherwise whatever is serialized on the client.
+            string model = ResolveModel(LLMProvider.OpenRouter, settings);
+            if (!string.IsNullOrEmpty(model)) _openRouterClient.Model = model;
         }
 
         protected override void OnDisable()
@@ -368,9 +448,33 @@ namespace Conkist.GDK.SmartAgents
             }
         }
 
+        /// <summary>Knowledge paragraphs as separate RAG documents. The animation list is in the system prompt, not here.</summary>
+        private static List<string> CollectKnowledgeDocuments(CharacterSO characterSO)
+        {
+            var docs = new List<string>();
+
+            if (characterSO.knowledgeFiles != null)
+            {
+                foreach (var file in characterSO.knowledgeFiles)
+                {
+                    if (file == null) continue;
+                    foreach (string paragraph in file.text.Split(new[] { "\n\n", "\r\n\r\n" }, System.StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        string cleaned = paragraph.Trim();
+                        if (!string.IsNullOrEmpty(cleaned)) docs.Add(cleaned);
+                    }
+                }
+            }
+
+            return docs;
+        }
+
+        /// <summary>
+        /// Embedding RAG (LLMUnity) when available and configured; otherwise the pure C# keyword index,
+        /// which also runs on WebGL.
+        /// </summary>
         private async System.Threading.Tasks.Task InitializeRAG()
         {
-#if !UNITY_WEBGL
             if (characterActor == null || characterActor.characterSO == null)
             {
                 Debug.LogWarning("[ChatAgentWrapper] Cannot initialize RAG: CharacterActor or CharacterSO is unassigned.");
@@ -378,99 +482,55 @@ namespace Conkist.GDK.SmartAgents
             }
 
             var characterSO = characterActor.characterSO;
+            List<string> docs = CollectKnowledgeDocuments(characterSO);
+            if (docs.Count == 0)
+            {
+                Debug.LogWarning("[ChatAgentWrapper] No knowledge files or animation list are configured in CharacterSO.");
+                return;
+            }
+
+#if !UNITY_WEBGL
             string savePath = characterSO.ragSavePath;
-            List<TextAsset> knowledgeFiles = characterSO.knowledgeFiles;
-            bool hasKnowledgeFiles = knowledgeFiles != null && knowledgeFiles.Count > 0;
-            bool hasAnimations = characterSO.animations != null && characterSO.animations.Length > 0;
-
-            if (string.IsNullOrEmpty(savePath) || (!hasKnowledgeFiles && !hasAnimations))
+            if (_rag != null && RagPreferEmbeddings && !string.IsNullOrEmpty(savePath))
             {
-                Debug.LogWarning("[ChatAgentWrapper] RAG save path is empty or no knowledge files/animation list are configured in CharacterSO.");
+                bool loaded = false;
+                if (!RagForceRebuild)
+                {
+                    loaded = await _rag.Load(savePath);
+                }
+
+                if (!loaded)
+                {
+                    Debug.Log($"[ChatAgentWrapper] RAG save file '{savePath}' not found or force rebuild enabled. Creating embeddings...");
+                    _rag.Clear();
+
+                    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                    foreach (string doc in docs)
+                    {
+                        await _rag.Add(doc);
+                    }
+                    stopwatch.Stop();
+
+                    Debug.Log($"[ChatAgentWrapper] Embedded {_rag.Count()} phrases in {stopwatch.Elapsed.TotalSeconds}s.");
+                    _rag.Save(savePath);
+                }
+                else
+                {
+                    Debug.Log($"[ChatAgentWrapper] Loaded existing RAG database '{savePath}' with {_rag.Count()} phrases.");
+                }
+
+                _embeddingRagReady = _rag.Count() > 0;
                 return;
             }
-
-            if (_rag == null)
-            {
-                return;
-            }
-
-            bool loaded = false;
-            if (!_forceRebuildRAG)
-            {
-                loaded = await _rag.Load(savePath);
-            }
-
-            if (!loaded)
-            {
-                Debug.Log($"[ChatAgentWrapper] RAG save file '{savePath}' not found or force rebuild enabled. Creating embeddings...");
-                
-                _rag.Clear();
-
-                System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
-                stopwatch.Start();
-
-                if (hasKnowledgeFiles)
-                {
-                    foreach (var file in knowledgeFiles)
-                    {
-                        if (file == null) continue;
-                        
-                        string[] paragraphs = file.text.Split(new string[] { "\n\n", "\r\n\r\n" }, System.StringSplitOptions.RemoveEmptyEntries);
-                        foreach (string paragraph in paragraphs)
-                        {
-                            string cleaned = paragraph.Trim();
-                            if (!string.IsNullOrEmpty(cleaned))
-                            {
-                                await _rag.Add(cleaned);
-                            }
-                        }
-                    }
-                }
-
-                // Also embed the character's animation list (from CharacterSO animations) as a separate document
-                try
-                {
-                    if (hasAnimations)
-                    {
-                        StringBuilder animBuilder = new StringBuilder();
-                        animBuilder.AppendLine($"Animation list for character: {characterSO.defaultName}");
-                        animBuilder.AppendLine("Use these animation keys to trigger runtime animations using the 'animate' action or task.");
-                        animBuilder.AppendLine();
-                        foreach (var expr in characterSO.animations)
-                        {
-                            if (expr == null) continue;
-                            string line = $"- \"{expr.key}\"";
-                            if (!string.IsNullOrEmpty(expr.description))
-                            {
-                                line += $" - {expr.description}";
-                            }
-                            animBuilder.AppendLine(line);
-                        }
-
-                        string animDoc = animBuilder.ToString();
-                        if (!string.IsNullOrEmpty(animDoc))
-                        {
-                            await _rag.Add(animDoc);
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    Debug.LogWarning($"[ChatAgentWrapper] Failed to add animation list to RAG: {ex.Message}");
-                }
-
-                stopwatch.Stop();
-                Debug.Log($"[ChatAgentWrapper] Embedded {_rag.Count()} phrases in {stopwatch.Elapsed.TotalMilliseconds / 1000f} seconds.");
-                _rag.Save(savePath);
-            }
-            else
-            {
-                Debug.Log($"[ChatAgentWrapper] Loaded existing RAG database '{savePath}' with {_rag.Count()} phrases.");
-            }
-#else
-            await System.Threading.Tasks.Task.Yield();
-            Debug.LogWarning("[ChatAgentWrapper] RAG is not supported on WebGL builds.");
 #endif
+
+            _keywordIndex.Clear();
+            foreach (string doc in docs)
+            {
+                _keywordIndex.Add(doc);
+            }
+            Debug.Log($"[ChatAgentWrapper] Keyword RAG ready with {_keywordIndex.Count} documents.");
+            await System.Threading.Tasks.Task.Yield();
         }
 
         public override void ForceMessageToAgent(string text)
@@ -525,12 +585,22 @@ namespace Conkist.GDK.SmartAgents
             }
 
             // Dynamic RAG Context Injection
-#if !UNITY_WEBGL
-            if (_useRAG && _rag != null && _rag.Count() > 0)
+            if (RagEnabled)
             {
                 try
                 {
-                    (string[] similarPhrases, _) = await _rag.Search(text, _numRAGResults);
+                    string[] similarPhrases = null;
+#if !UNITY_WEBGL
+                    if (_embeddingRagReady)
+                    {
+                        (similarPhrases, _) = await _rag.Search(text, RagTopResults);
+                    }
+#endif
+                    if (similarPhrases == null && _keywordIndex.Count > 0)
+                    {
+                        similarPhrases = _keywordIndex.Search(text, RagTopResults);
+                    }
+
                     if (similarPhrases != null && similarPhrases.Length > 0)
                     {
                         promptBuilder.AppendLine("[Context: Use this knowledge from your memory if relevant:]");
@@ -546,7 +616,6 @@ namespace Conkist.GDK.SmartAgents
                     Debug.LogWarning($"[ChatAgentWrapper] RAG search failed: {ex.Message}.");
                 }
             }
-#endif
 
             promptBuilder.AppendLine("User Message:");
             promptBuilder.Append(text);

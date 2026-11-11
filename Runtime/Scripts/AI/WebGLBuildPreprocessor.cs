@@ -6,7 +6,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     public class WebGLBuildPreprocessor : IProcessSceneWithReport
     {

@@ -3,12 +3,12 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace Conkist.GDK.SmartAgents.TTS
+namespace Conkist.GDK.AI.Providers
 {
     /// <summary>
-    /// ElevenLabs implementation for Text-To-Speech generation.
+    /// ElevenLabs text to speech. Exists only while symbol CONKIST_ELEVENLABS is on (this assembly has that define constraint).
     /// </summary>
-    public class ElevenLabsVoiceGenerator : VoiceGeneratorBase
+    public class ElevenLabsTextToSpeech : MonoBehaviour, ITextToSpeech
     {
         [Header("ElevenLabs Settings")]
         public string apiKey;
@@ -17,6 +17,8 @@ namespace Conkist.GDK.SmartAgents.TTS
 
         [Range(0f, 1f)] public float stability = 0.5f;
         [Range(0f, 1f)] public float similarityBoost = 0.75f;
+
+        public bool IsAvailable => true;
 
         [System.Serializable]
         private class ElevenLabsRequest
@@ -33,7 +35,7 @@ namespace Conkist.GDK.SmartAgents.TTS
             public float similarity_boost;
         }
 
-        public override async Task<AudioClip> TextToSpeech(string text, string customVoiceId = null)
+        public async Task<AudioClip> TextToSpeech(string text, string customVoiceId = null)
         {
             if (string.IsNullOrEmpty(apiKey))
             {

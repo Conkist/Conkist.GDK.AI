@@ -1,0 +1,19 @@
+{
+    "name": "Conkist.GDK.AI.ElevenLabs",
+    "rootNamespace": "Conkist.GDK.AI.Providers",
+    "references": [
+        "Conkist.GDK.AI",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "CONKIST_ELEVENLABS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

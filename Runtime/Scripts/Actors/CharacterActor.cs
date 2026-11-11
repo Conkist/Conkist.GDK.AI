@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Conkist.GDK.SmartAgents
+namespace Conkist.GDK.AI
 {
     public class CharacterActor : MonoBehaviour
     {

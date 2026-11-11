@@ -1,0 +1,22 @@
+{
+    "name": "Conkist.GDK.AI.Editor.Whisper",
+    "rootNamespace": "Conkist.GDK.AI.Editor",
+    "references": [
+        "Conkist.GDK.AI",
+        "Conkist.GDK.AI.Whisper",
+        "com.whisper.unity"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "CONKIST_WHISPER"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

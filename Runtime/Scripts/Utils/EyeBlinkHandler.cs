@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-namespace Conkist.AI.Animation
+namespace Conkist.GDK.AI.Animation
 {
     [System.Serializable]
     public class EyeBlendRangeConfig

@@ -1,8 +1,8 @@
 {
-  "name": "me.conkist.gdk.smart-agents",
+  "name": "me.conkist.gdk.ai",
   "version": "0.1.0",
-  "displayName": "Conkist GDK Smart Agents",
-  "description": "Smart agents package for Conkist GDK",
+  "displayName": "Conkist GDK AI",
+  "description": "Conkist GDK package for artificial intelligence solutions for games.",
   "unity": "6000.3",
   "unityRelease": "14f1",
   "author": {
@@ -18,12 +18,9 @@
     }
   ],
   "dependencies": {
+    "ai.undream.llm": "3.0.3",
     "me.conkist.gdk.core": "0.1.0",
     "com.unity.nuget.newtonsoft-json": "3.2.2",
     "com.unity.animation.rigging": "1.2.1"
-  },
-  "optionalDependencies": {
-    "ai.undream.llm": "git://github.com/undreamai/LLMUnity.git#main",
-    "com.whisper.unity": "git://github.com/Macoron/whisper.unity.git#main"
   }
 }
