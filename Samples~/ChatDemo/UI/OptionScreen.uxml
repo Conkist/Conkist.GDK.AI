@@ -1,5 +1,5 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
-    <Style src="project://database/Assets/Samples/Conkist.GDK.SmartAgents/0.1.0/ChatDemo/UI/AppSyle.uss?fileID=7433441132597879392&amp;guid=32a7922f59e404d94b5a9a0814a2a5a6&amp;type=3#AppSyle"/>
+    <Style src="AppSyle.uss"/>
     <ui:VisualElement class="settings-screen">
         <ui:VisualElement class="settings-header">
             <ui:Button text="&lt; Back" name="BackButton" class="back-button"/>
